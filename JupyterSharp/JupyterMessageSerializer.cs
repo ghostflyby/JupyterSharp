@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
-namespace Maieutics.Jupyter.Shared;
+namespace JupyterSharp;
 
 public interface IJupyterMessageSerializer
 {

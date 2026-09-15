@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Maieutics.Jupyter.Shared;
+namespace JupyterSharp;
 
 public static class JupyterJson
 {

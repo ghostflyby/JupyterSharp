@@ -1,8 +1,8 @@
-using Maieutics.Jupyter.Client.Protocol;
-using Maieutics.Jupyter.Client.Transport;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
+using JupyterSharp.Client.Protocol;
+using JupyterSharp.Client.Transport;
 
-namespace Maieutics.Jupyter.Client;
+namespace JupyterSharp.Client;
 
 public sealed class JupyterClient : IJupyterClient
 {

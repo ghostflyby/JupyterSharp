@@ -1,6 +1,6 @@
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
 
-namespace Maieutics.Jupyter.Client.Transport;
+namespace JupyterSharp.Client.Transport;
 
 public enum JupyterTransportChannel
 {

@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
 
-namespace Maieutics.Jupyter.Shared;
+namespace JupyterSharp;
 
 public sealed record MimeBundle(IReadOnlyDictionary<string, JsonElement> Data)
 {

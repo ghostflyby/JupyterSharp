@@ -1,8 +1,8 @@
 using System.Text.Json;
-using Maieutics.Jupyter.Client.Transport;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
+using JupyterSharp.Client.Transport;
 
-namespace Maieutics.Jupyter.Client;
+namespace JupyterSharp.Client;
 
 public enum JupyterKernelState
 {

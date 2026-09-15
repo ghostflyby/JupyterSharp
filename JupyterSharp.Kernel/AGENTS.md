@@ -1,7 +1,4 @@
-# Maieutics.Jupyter.Kernel instructions
-
-Use `.agents/skills/maieutics-jupyter-protocol/SKILL.md` and
-`.agents/skills/maieutics-structured-concurrency/SKILL.md` for cross-project behavior.
+# JupyterSharp.Kernel instructions
 
 ## Ownership
 
@@ -16,8 +13,8 @@ touching ZmqSharp or wire envelopes.
 
 ## Forbidden dependencies
 
-- Reference only `Maieutics.Jupyter.Shared` for Jupyter contracts.
-- Never reference `Maieutics.Jupyter.Client`, Agent, provider, or executable concepts.
+- Reference only `JupyterSharp` for Jupyter contracts.
+- Never reference `JupyterSharp.Client`, provider, or host-product concepts.
 - ZmqSharp types and raw frames must not escape `Transport`.
 - Application capability implementations must not create frames, access sockets, or manage routing identities.
 

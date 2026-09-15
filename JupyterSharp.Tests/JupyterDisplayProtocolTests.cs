@@ -1,8 +1,8 @@
 using System.Text.Json;
 using FluentAssertions;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
 
-namespace Maieutics.Jupyter.Tests;
+namespace JupyterSharp.Tests;
 
 public sealed class JupyterDisplayProtocolTests
 {

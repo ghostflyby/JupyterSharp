@@ -4,10 +4,10 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading.Channels;
-using Maieutics.Jupyter.Client.Transport;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
+using JupyterSharp.Client.Transport;
 
-namespace Maieutics.Jupyter.Client.Protocol;
+namespace JupyterSharp.Client.Protocol;
 
 internal sealed class JupyterProtocolSession : IJupyterProtocolSession
 {

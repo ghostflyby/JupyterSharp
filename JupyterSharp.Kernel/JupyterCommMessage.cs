@@ -1,7 +1,7 @@
 using System.Text.Json;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
 
-namespace Maieutics.Jupyter.Kernel;
+namespace JupyterSharp.Kernel;
 
 /// <summary>
 ///     A Jupyter comm message received on the shell channel. Comm carries frontend↔kernel widget

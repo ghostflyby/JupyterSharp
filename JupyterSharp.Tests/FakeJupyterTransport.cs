@@ -1,8 +1,8 @@
 using System.Threading.Channels;
-using Maieutics.Jupyter.Client.Transport;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
+using JupyterSharp.Client.Transport;
 
-namespace Maieutics.Jupyter.Tests;
+namespace JupyterSharp.Tests;
 
 internal sealed class FakeJupyterTransport : IJupyterTransport
 {

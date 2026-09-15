@@ -1,0 +1,36 @@
+<Project>
+
+    <!-- Build settings shared by every project in the repository. Package identity
+         (PackageId, Description, PackageTags) stays in each csproj. -->
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <!-- Declares AOT support for the libraries and turns on the AOT, trim, and
+             single-file analyzers, so an AOT regression fails the build instead of
+             surfacing in a consumer's publish. Test assemblies are not AOT-compiled
+             and turn this back off. -->
+        <IsAotCompatible>true</IsAotCompatible>
+    </PropertyGroup>
+
+    <!-- Packaging metadata shared by the published packages. -->
+    <PropertyGroup>
+        <Authors>JupyterSharp contributors</Authors>
+        <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <RepositoryType>git</RepositoryType>
+        <RepositoryUrl>https://github.com/ghostflyby/JupyterSharp</RepositoryUrl>
+        <!-- Symbol packages: a .snupkg with the portable PDB ships alongside the nupkg
+             so consumers can debug into the sources. SourceLink maps the PDB back to
+             the GitHub commit. -->
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
+        <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+        <!-- Package version is injected by the publish workflow (-p:Version=<tag>);
+             no Version property here so the file never drifts from the released version.
+             A local `dotnet pack` therefore defaults to 1.0.0 - only for local experiments. -->
+    </PropertyGroup>
+
+</Project>

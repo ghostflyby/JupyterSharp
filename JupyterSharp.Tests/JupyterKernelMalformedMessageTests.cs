@@ -1,12 +1,12 @@
 using System.Buffers;
 using System.Text.Json;
 using FluentAssertions;
-using Maieutics.Jupyter.Client;
-using Maieutics.Jupyter.Kernel;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
+using JupyterSharp.Client;
+using JupyterSharp.Kernel;
 using ZmqSharp;
 
-namespace Maieutics.Jupyter.Tests;
+namespace JupyterSharp.Tests;
 
 /// <summary>
 ///     Pins the malformed-message contract of the kernel host: one poisoned message must
@@ -193,7 +193,7 @@ public sealed class JupyterKernelMalformedMessageTests
     {
         public JupyterKernelInfo KernelInfo { get; } = new(
             "5.5",
-            "maieutics-test",
+            "jupyter-sharp-test",
             "1.0",
             new JupyterLanguageInfo("test", "1.0"));
 

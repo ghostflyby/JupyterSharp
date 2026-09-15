@@ -1,9 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
 
-namespace Maieutics.Jupyter.Client;
+namespace JupyterSharp.Client;
 
 public sealed record JupyterKernelSpec(
     IReadOnlyList<string> Argv,

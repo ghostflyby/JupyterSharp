@@ -2,12 +2,12 @@ using System.Buffers;
 using System.Text.Json;
 using System.Threading.Channels;
 using FluentAssertions;
-using Maieutics.Jupyter.Client;
-using Maieutics.Jupyter.Kernel;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
+using JupyterSharp.Client;
+using JupyterSharp.Kernel;
 using ZmqSharp;
 
-namespace Maieutics.Jupyter.Tests;
+namespace JupyterSharp.Tests;
 
 [Collection(JupyterSocketIntegrationCollection.Name)]
 public sealed class SelfHostedJupyterIntegrationTests
@@ -126,7 +126,7 @@ public sealed class SelfHostedJupyterIntegrationTests
         var latency = await client.PingAsync(cancellationToken);
         latency.Should().BeGreaterThanOrEqualTo(TimeSpan.Zero);
         var info = await client.GetKernelInfoAsync(cancellationToken);
-        info.Implementation.Should().Be("maieutics-test");
+        info.Implementation.Should().Be("jupyter-sharp-test");
         info.ProtocolVersion.Should().Be("5.5");
         info.Status.Should().Be("ok");
 
@@ -569,7 +569,7 @@ public sealed class SelfHostedJupyterIntegrationTests
 
         public JupyterKernelInfo KernelInfo { get; } = new(
             "5.5",
-            "maieutics-test",
+            "jupyter-sharp-test",
             "1.0",
             new JupyterLanguageInfo("test", "1.0"));
 
@@ -658,7 +658,7 @@ public sealed class SelfHostedJupyterIntegrationTests
     {
         public JupyterKernelInfo KernelInfo { get; } = new(
             "5.5",
-            "maieutics-test",
+            "jupyter-sharp-test",
             "1.0",
             new JupyterLanguageInfo("test", "1.0"));
 

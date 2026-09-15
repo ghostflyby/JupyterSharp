@@ -2,11 +2,11 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Net.Sockets;
 using System.Threading.Channels;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
 using ZmqSharp;
 using ZmqSharp.Transports;
 
-namespace Maieutics.Jupyter.Client.Transport;
+namespace JupyterSharp.Client.Transport;
 
 /// <summary>
 /// Provides an asynchronous ZeroMQ transport for a Jupyter client.

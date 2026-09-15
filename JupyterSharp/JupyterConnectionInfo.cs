@@ -4,7 +4,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Maieutics.Jupyter.Shared;
+namespace JupyterSharp;
 
 public sealed record JupyterConnectionInfo(
     string Transport,

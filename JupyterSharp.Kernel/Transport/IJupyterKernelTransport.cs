@@ -1,6 +1,6 @@
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
 
-namespace Maieutics.Jupyter.Kernel.Transport;
+namespace JupyterSharp.Kernel.Transport;
 
 internal interface IJupyterKernelTransport : IAsyncDisposable
 {

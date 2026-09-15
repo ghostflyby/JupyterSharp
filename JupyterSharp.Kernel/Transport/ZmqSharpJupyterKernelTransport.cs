@@ -1,11 +1,11 @@
 using System.Buffers;
 using System.Text.Json;
 using System.Threading.Channels;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
 using ZmqSharp;
 using ZmqSharp.Transports;
 
-namespace Maieutics.Jupyter.Kernel.Transport;
+namespace JupyterSharp.Kernel.Transport;
 
 internal sealed class ZmqSharpJupyterKernelTransport : IJupyterKernelTransport
 {

@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 
-namespace Maieutics.Jupyter.Shared;
+namespace JupyterSharp;
 
 [JsonConverter(typeof(JupyterMessageIdJsonConverter))]
 public readonly record struct JupyterMessageId(string Value)
@@ -99,7 +99,7 @@ public sealed class JupyterMessageHeader
 
 public sealed record JupyterSessionIdentity(string SessionId, string Username)
 {
-    public static JupyterSessionIdentity Create(string username = "maieutics")
+    public static JupyterSessionIdentity Create(string username = "jupyter-sharp")
     {
         return new JupyterSessionIdentity(Guid.NewGuid().ToString("N"), username);
     }

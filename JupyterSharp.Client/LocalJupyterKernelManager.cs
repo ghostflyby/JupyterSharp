@@ -3,9 +3,9 @@ using System.Diagnostics;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
 
-namespace Maieutics.Jupyter.Client;
+namespace JupyterSharp.Client;
 
 public interface IJupyterKernelManager : IAsyncDisposable
 {
@@ -208,7 +208,7 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
         var connectionInfo = JupyterConnectionInfo.CreateLocalTcp();
         var runtimeDirectory = options.RuntimeDirectory ?? Path.GetTempPath();
         Directory.CreateDirectory(runtimeDirectory);
-        connectionFile = Path.Combine(runtimeDirectory, $"maieutics-kernel-{Guid.NewGuid():N}.json");
+        connectionFile = Path.Combine(runtimeDirectory, $"jupyter-sharp-kernel-{Guid.NewGuid():N}.json");
         await connectionInfo.WriteFileAsync(connectionFile, cancellationToken).ConfigureAwait(false);
 
         process = StartProcess(connectionFile);

@@ -1,7 +1,4 @@
-# Maieutics.Jupyter.Shared instructions
-
-Use `.agents/skills/maieutics-jupyter-protocol/SKILL.md` for cross-project protocol rules and
-`.agents/skills/maieutics-dotnet-testing/SKILL.md` when changing coverage.
+# JupyterSharp instructions
 
 ## Ownership
 

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <PackageId>JupyterSharp.Kernel</PackageId>
+        <Description>A server-side Jupyter kernel host for .NET: ROUTER/XPUB/REP transport, request dispatch, execution state publication, interrupt, and shutdown.</Description>
+        <PackageTags>jupyter;jupyter-kernel;notebook;zeromq;kernel</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\JupyterSharp\JupyterSharp.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="ZmqSharp" Version="0.5.1"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="JupyterSharp.Tests"/>
+    </ItemGroup>
+
+</Project>

@@ -1,11 +1,11 @@
 using FluentAssertions;
-using Maieutics.Jupyter.Client;
-using Maieutics.Jupyter.Client.Transport;
-using Maieutics.Jupyter.Kernel;
-using Maieutics.Jupyter.Kernel.Transport;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
+using JupyterSharp.Client;
+using JupyterSharp.Client.Transport;
+using JupyterSharp.Kernel;
+using JupyterSharp.Kernel.Transport;
 
-namespace Maieutics.Jupyter.Tests;
+namespace JupyterSharp.Tests;
 
 [Collection(JupyterSocketIntegrationCollection.Name)]
 public sealed class JupyterTransportLifecycleTests
@@ -132,7 +132,7 @@ public sealed class JupyterTransportLifecycleTests
     {
         public JupyterKernelInfo KernelInfo { get; } = new(
             ProtocolVersion: "5.5",
-            Implementation: "maieutics-test",
+            Implementation: "jupyter-sharp-test",
             ImplementationVersion: "1.0",
             LanguageInfo: new JupyterLanguageInfo("csharp", ".NET", ".cs", "dotnet"));
 

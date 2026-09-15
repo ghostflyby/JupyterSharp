@@ -1,12 +1,12 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using FluentAssertions;
-using Maieutics.Jupyter.Client;
-using Maieutics.Jupyter.Client.Protocol;
-using Maieutics.Jupyter.Client.Transport;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
+using JupyterSharp.Client;
+using JupyterSharp.Client.Protocol;
+using JupyterSharp.Client.Transport;
 
-namespace Maieutics.Jupyter.Tests;
+namespace JupyterSharp.Tests;
 
 public sealed class JupyterProtocolSessionTests
 {

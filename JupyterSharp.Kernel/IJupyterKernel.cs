@@ -1,6 +1,6 @@
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
 
-namespace Maieutics.Jupyter.Kernel;
+namespace JupyterSharp.Kernel;
 
 public interface IJupyterKernel : IAsyncDisposable
 {

@@ -1,4 +1,4 @@
-namespace Maieutics.Jupyter.Shared;
+namespace JupyterSharp;
 
 public readonly record struct JupyterTextPosition(int Line, int Utf16Column);
 

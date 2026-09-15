@@ -1,4 +1,4 @@
-namespace Maieutics.Jupyter.Shared;
+namespace JupyterSharp;
 
 public enum JupyterChannel
 {

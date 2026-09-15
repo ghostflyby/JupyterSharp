@@ -1,6 +1,6 @@
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
 
-namespace Maieutics.Jupyter.Client.Protocol;
+namespace JupyterSharp.Client.Protocol;
 
 internal interface IJupyterProtocolSession : IAsyncDisposable
 {

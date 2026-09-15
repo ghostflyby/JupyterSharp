@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
-using Maieutics.Jupyter.Client.Transport;
+using JupyterSharp.Client.Transport;
 
-namespace Maieutics.Jupyter.Client.Protocol;
+namespace JupyterSharp.Client.Protocol;
 
 internal sealed class AsyncEventHub<T>(int capacity)
 {

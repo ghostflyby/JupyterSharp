@@ -1,6 +1,6 @@
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
 
-namespace Maieutics.Jupyter.Client;
+namespace JupyterSharp.Client;
 
 /// <summary>
 ///     Represents one locally tracked Jupyter execution. Disposing an incomplete execution abandons

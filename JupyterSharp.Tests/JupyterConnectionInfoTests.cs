@@ -1,8 +1,8 @@
 using System.Text.Json;
 using FluentAssertions;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
 
-namespace Maieutics.Jupyter.Tests;
+namespace JupyterSharp.Tests;
 
 /// <summary>
 ///     Pins the connection-file round trip and its publication contract: the file is

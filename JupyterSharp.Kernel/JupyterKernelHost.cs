@@ -3,10 +3,10 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading.Channels;
-using Maieutics.Jupyter.Kernel.Transport;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
+using JupyterSharp.Kernel.Transport;
 
-namespace Maieutics.Jupyter.Kernel;
+namespace JupyterSharp.Kernel;
 
 public sealed class JupyterKernelHost : IJupyterKernel
 {

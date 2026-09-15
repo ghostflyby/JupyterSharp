@@ -1,0 +1,16 @@
+<Project>
+
+    <!-- Imported after each project body, so IsPackable is already resolved here: the
+         test project opts out, and only the shipping libraries get SourceLink and the
+         repository-level license files packed into their nupkg. -->
+    <ItemGroup Condition="'$(IsPackable)' != 'false'">
+        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.401" PrivateAssets="all"/>
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(IsPackable)' != 'false'">
+        <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="/"/>
+        <None Include="$(MSBuildThisFileDirectory)NOTICE" Pack="true" PackagePath="/"/>
+        <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="/"/>
+    </ItemGroup>
+
+</Project>

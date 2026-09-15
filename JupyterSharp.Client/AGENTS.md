@@ -1,7 +1,4 @@
-# Maieutics.Jupyter.Client instructions
-
-Use `.agents/skills/maieutics-jupyter-protocol/SKILL.md` and
-`.agents/skills/maieutics-structured-concurrency/SKILL.md` for cross-project behavior.
+# JupyterSharp.Client instructions
 
 ## Ownership
 
@@ -12,12 +9,12 @@ This project is a reusable client for arbitrary Jupyter kernels. It contains thr
 - public facade and local manager: stable .NET APIs, kernelspec parsing, child-process startup, interrupt, restart, and
   cleanup.
 
-It must remain usable without `Maieutics.Agent`, the product executable, or `Maieutics.Jupyter.Kernel`.
+It must remain usable without `JupyterSharp.Kernel` and without any host application.
 
 ## Forbidden dependencies
 
-- Reference only `Maieutics.Jupyter.Shared` for Jupyter contracts.
-- Never reference `Maieutics.Jupyter.Kernel` or Agent/product concepts.
+- Reference only `JupyterSharp` for Jupyter contracts.
+- Never reference `JupyterSharp.Kernel` or host-product concepts.
 - ZmqSharp types and raw frames must not escape `Transport`.
 - Transport must not own request/reply semantics, execution aggregation, or notebook UI reduction.
 

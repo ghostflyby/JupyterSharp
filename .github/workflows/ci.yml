@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same ref supersedes the in-flight CI run: only the latest
+# commit's result matters for the merge gate. Tag-only pushes do not match the
+# branches filter, so publish runs (tag-triggered) are never cancelled by this.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-test:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022, macos-15]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+
+      - name: Restore
+        run: dotnet restore JupyterSharp.slnx
+
+      - name: Build
+        run: dotnet build JupyterSharp.slnx --no-restore --configuration Release -warnaserror
+
+      - name: Format
+        run: dotnet format JupyterSharp.slnx --verify-no-changes --no-restore
+
+      - name: Test
+        # The socket integration tests bind loopback TCP and are serialized into a
+        # non-parallel collection; they need no external kernel, Python, or ZMQ runtime.
+        run: dotnet test JupyterSharp.slnx --no-build --configuration Release
+
+  # IsAotCompatible on the libraries only proves they compile against the AOT analyzers.
+  # Publishing and running a real AOT host is what proves the trim/AOT annotations and the
+  # source-generated JSON actually hold at runtime. The host lives outside the solution so
+  # it never affects library build or test time.
+  native-aot:
+    name: NativeAOT (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rid: linux-x64
+          - os: macos-15
+            rid: osx-arm64
+          - os: windows-2022
+            rid: win-x64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore JupyterSharp.Aot/JupyterSharp.Aot.csproj --runtime ${{ matrix.rid }}
+
+      - name: Publish AOT host
+        run: dotnet publish JupyterSharp.Aot/JupyterSharp.Aot.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained true --no-restore
+
+      - name: Run AOT round trip
+        # The published binary is the consumer: it binds a kernel host, connects the client,
+        # executes, and verifies the streamed output. Exit code is the verdict.
+        shell: pwsh
+        run: |
+          $exe = if ($IsWindows) { 'JupyterSharp.Aot/bin/Release/net10.0/${{ matrix.rid }}/publish/JupyterSharp.Aot.exe' } else { 'JupyterSharp.Aot/bin/Release/net10.0/${{ matrix.rid }}/publish/JupyterSharp.Aot' }
+          if (-not (Test-Path -LiteralPath $exe)) { throw "published executable not found: $exe" }
+          & $exe
+          if ($LASTEXITCODE -ne 0) { throw "AOT round trip failed with exit code $LASTEXITCODE" }

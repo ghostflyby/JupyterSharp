@@ -1,10 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
+        <!-- Test assemblies are not AOT-compiled; the analyzer set switched on in
+             Directory.Build.props would only add noise here. -->
+        <IsAotCompatible>false</IsAotCompatible>
     </PropertyGroup>
 
     <ItemGroup>
@@ -17,14 +17,13 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Maieutics.Jupyter.Client\Maieutics.Jupyter.Client.csproj" />
-        <ProjectReference Include="..\Maieutics.Jupyter.Kernel\Maieutics.Jupyter.Kernel.csproj" />
-        <ProjectReference Include="..\Maieutics.Jupyter.Shared\Maieutics.Jupyter.Shared.csproj" />
+        <ProjectReference Include="..\JupyterSharp.Client\JupyterSharp.Client.csproj" />
+        <ProjectReference Include="..\JupyterSharp.Kernel\JupyterSharp.Kernel.csproj" />
+        <ProjectReference Include="..\JupyterSharp\JupyterSharp.csproj" />
     </ItemGroup>
 
     <ItemGroup>
         <Using Include="Xunit" />
     </ItemGroup>
-
 
 </Project>

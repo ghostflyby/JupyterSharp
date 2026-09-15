@@ -1,4 +1,4 @@
-namespace Maieutics.Jupyter.Tests;
+namespace JupyterSharp.Tests;
 
 [CollectionDefinition(Name, DisableParallelization = true)]
 public sealed class JupyterSocketIntegrationCollection

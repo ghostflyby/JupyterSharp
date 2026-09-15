@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
-using Maieutics.Jupyter.Shared;
+using JupyterSharp;
 
-namespace Maieutics.Jupyter.Client.Protocol;
+namespace JupyterSharp.Client.Protocol;
 
 internal sealed class JupyterExecution(
     JupyterMessageId requestId,
