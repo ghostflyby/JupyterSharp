@@ -2,6 +2,11 @@ using JupyterSharp;
 
 namespace JupyterSharp.Client.Transport;
 
+/// <summary>
+///     Names one of the five Jupyter protocol channels. Public because the channel a message
+///     arrived on is part of the client's observable model (<see cref="JupyterUnhandledMessage" />),
+///     not an implementation detail of any particular transport.
+/// </summary>
 public enum JupyterTransportChannel
 {
     Shell,
@@ -10,7 +15,7 @@ public enum JupyterTransportChannel
     Stdin
 }
 
-public sealed record JupyterTransportMessage(
+internal sealed record JupyterTransportMessage(
     JupyterTransportChannel Channel,
     JupyterWireMessage WireMessage)
 {

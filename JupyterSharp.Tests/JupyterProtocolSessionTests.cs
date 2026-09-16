@@ -953,9 +953,9 @@ public sealed class JupyterProtocolSessionTests
     {
         return new JupyterKernelInfo(
             "5.5",
+            new JupyterLanguageInfo("test", "1.0"),
             "test-kernel",
-            "1.0",
-            new JupyterLanguageInfo("test", "1.0"));
+            "1.0");
     }
 
     private static JupyterDisplayData DisplayData(

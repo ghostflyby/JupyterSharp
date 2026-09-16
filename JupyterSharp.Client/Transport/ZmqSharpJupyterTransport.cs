@@ -11,7 +11,7 @@ namespace JupyterSharp.Client.Transport;
 /// <summary>
 /// Provides an asynchronous ZeroMQ transport for a Jupyter client.
 /// </summary>
-public sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTransportConnectionReadiness
+internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTransportConnectionReadiness
 {
     private static readonly TimeSpan ConnectRetryDelay = TimeSpan.FromMilliseconds(25);
     private readonly JupyterConnectionInfo connectionInfo;

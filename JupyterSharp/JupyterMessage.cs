@@ -18,12 +18,20 @@ public readonly record struct JupyterMessageId(string Value)
     }
 }
 
+/// <summary>
+///     One logical Jupyter message: the envelope plus its content.
+/// </summary>
+/// <remarks>
+///     The channel a message travels on is <em>not</em> part of the message: it is determined by
+///     which socket (or transport channel) carries it, and the wire format encodes no such field.
+///     A reserved <c>Channel</c> property was removed before the first release because nothing
+///     ever assigned, serialized, or read it.
+/// </remarks>
 public sealed record JupyterMessage(
     JupyterMessageHeader Header,
     JupyterMessageHeader? ParentHeader,
     JsonElement Metadata,
-    JsonElement Content,
-    string? Channel = null)
+    JsonElement Content)
 {
     public string MessageType => Header.MessageType;
 

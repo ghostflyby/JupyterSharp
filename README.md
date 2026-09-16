@@ -74,7 +74,18 @@ await host.Completion;
 `JupyterExecutionContext` also exposes `WriteStderrAsync`, `DisplayAsync`, `DisplayTrackedAsync`,
 `UpdateDisplayAsync`, `ClearOutputAsync`, `PublishResultAsync`, `PublishErrorAsync`, and `RequestInputAsync`.
 Optional capabilities are separate interfaces: `IJupyterCompletionProvider`, `IJupyterInspectionProvider`,
-`IJupyterCodeCompletenessProvider`, and `IJupyterCommSink`.
+`IJupyterCodeCompletenessProvider`, `IJupyterCommSink`, and `IJupyterKernelLifecycle` (shutdown notification for an
+application that holds resources). The host does not dispose your application — the caller that constructed it owns it.
+
+## Unknown and missing fields
+
+`JupyterMessage.Content` holds the original JSON and is written back verbatim, so unknown fields from a peer survive a
+receive-and-forward round trip. The typed records are a convenience projection: projecting through `GetContent<T>` and
+re-serializing drops fields the record does not know about.
+
+Missing fields are tolerated, and a field a peer omits is bound to `default` rather than failing deserialization — so a
+non-nullable `string` property can hold `null` after a successful read. Where a real kernel omits a field, the record
+supplies an explicit default.
 
 ## Protocol scope
 

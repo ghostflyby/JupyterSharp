@@ -31,3 +31,15 @@ touching ZmqSharp or wire envelopes.
 - Missing optional language providers return protocol-valid `NotSupported` or `unknown` responses as specified by the
   message type.
 - Terminal transport transitions complete once and fail all dependent operations consistently.
+
+## Application ownership
+
+- The host does **not** dispose the kernel application. The caller that constructed it owns it, and disposing the host
+  is a separate act from disposing the application.
+- `IJupyterKernelLifecycle` is the only stop notification, and it is optional by design so a stateless kernel never
+  implements shutdown machinery it does not need. It fires exactly once per host, after every loop has stopped (the
+  application can no longer be asked to execute) and before the transport is disposed, on every stop path — explicit
+  `StopAsync`, a protocol `shutdown_request`, or host disposal. A faulting hook is surfaced on `Completion` like a
+  disposal fault rather than allowed to mask the host's own terminal cause.
+- Optional capabilities stay optional interfaces. Do not fold them into `IJupyterKernelApplication`: that would force
+  every simple kernel to implement machinery it does not use, and it would be a breaking change for existing kernels.

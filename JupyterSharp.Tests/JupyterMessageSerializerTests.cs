@@ -152,4 +152,46 @@ public sealed class JupyterMessageSerializerTests
         info.Debugger.Should().BeFalse();
         info.SupportedFeatures.Should().BeNull();
     }
+
+    [Fact]
+    public void KernelInfoToleratesKernelsThatOmitTheImplementationFields()
+    {
+        // Ark omits implementation_version entirely, and several kernels omit status although the
+        // specification requires it. Rejecting the reply would take GetKernelInfoAsync down for a
+        // kernel that otherwise works, so the descriptive fields default instead.
+        const string json = """
+                            {
+                              "protocol_version": "5.3",
+                              "language_info": { "name": "ark", "version": "0.1" }
+                            }
+                            """;
+
+        var info = JsonSerializer.Deserialize(json, JupyterJsonContext.Default.JupyterKernelInfo);
+
+        info.Should().NotBeNull();
+        info.ProtocolVersion.Should().Be("5.3");
+        info.Implementation.Should().BeEmpty();
+        info.ImplementationVersion.Should().BeEmpty();
+        info.Status.Should().Be("ok");
+        info.LanguageInfo.Name.Should().Be("ark");
+    }
+
+    [Fact]
+    public void KnownMessageContentMissingAFieldDeserializesToNullRatherThanFailing()
+    {
+        // Pins the current System.Text.Json behavior, which is weaker than the record signatures
+        // imply: a missing constructor argument is bound to default(T), so a non-nullable string
+        // ends up holding null and no JsonException is raised. Callers therefore cannot treat
+        // "deserialized successfully" as "content is complete".
+        //
+        // This is deliberately pinned rather than fixed here: enforcing required constructor
+        // parameters would change the contract for every protocol DTO at once, and the Jupyter
+        // ecosystem does contain kernels that omit fields the specification requires (see the
+        // tolerance test above). Decide that globally, not as a side effect of one record.
+        var info = JsonSerializer.Deserialize("""{ "language_info": { "name": "ark", "version": "0.1" } }""",
+            JupyterJsonContext.Default.JupyterKernelInfo);
+
+        info.Should().NotBeNull();
+        info.ProtocolVersion.Should().BeNull();
+    }
 }
