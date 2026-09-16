@@ -871,6 +871,22 @@ public sealed class JupyterKernelHost : IJupyterKernel
             pendingInputs.Clear();
         }
 
+        // The application is notified after every loop has stopped (so it can no longer be asked to
+        // execute) and before the transport is torn down. Its failure is recorded like a disposal
+        // failure rather than thrown, so a faulting shutdown hook cannot mask the host's cause.
+        Exception? lifecycleFailure = null;
+        if (application is IJupyterKernelLifecycle lifecycle)
+        {
+            try
+            {
+                await lifecycle.OnShutdownAsync(RestartRequested, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                lifecycleFailure = exception;
+            }
+        }
+
         // Transport disposal runs outside the loop handling so a disposal fault cannot mask
         // the loops' terminal cause; both are surfaced on the completion source.
         Exception? disposeFailure = null;
@@ -886,7 +902,7 @@ public sealed class JupyterKernelHost : IJupyterKernel
         // An internally-initiated fatal fault cancels the lifetime first, so WhenAll usually
         // observes only OperationCanceledException here. Surface the recorded cause on the
         // completion source instead of reporting success for a host that died on its own.
-        failure = failure ?? Volatile.Read(ref fatalFailure) ?? disposeFailure;
+        failure = failure ?? Volatile.Read(ref fatalFailure) ?? lifecycleFailure ?? disposeFailure;
         if (failure is { } fatal) completion.TrySetException(fatal);
         else completion.TrySetResult();
     }

@@ -401,6 +401,47 @@ public sealed class SelfHostedJupyterIntegrationTests
         }
     }
 
+    [Fact(Timeout = 30_000)]
+    public async Task ShutdownRequestNotifiesLifecycleExactlyOnceWithRestartFlag()
+    {
+        using var deadline = CreateDeadline(TestContext.Current.CancellationToken);
+        var connection = JupyterConnectionInfo.CreateLocalTcp();
+        var application = new LifecycleKernelApplication();
+        var host = await JupyterKernelHost.StartAsync(
+            connection,
+            application,
+            cancellationToken: deadline.Token);
+        await using var client = await JupyterClient.ConnectAsync(
+            connection,
+            cancellationToken: deadline.Token);
+
+        await client.ShutdownAsync(restart: true, deadline.Token);
+        await application.Notified.Task.WaitAsync(deadline.Token);
+
+        application.RestartValues.Should().Equal([true]);
+
+        // Disposal is a second stop path, and it must not produce a second notification.
+        await host.DisposeAsync();
+        application.ShutdownCount.Should().Be(1);
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task LifecycleNotificationStillRunsWhenTheHostIsStoppedWithoutShutdownRequest()
+    {
+        using var deadline = CreateDeadline(TestContext.Current.CancellationToken);
+        var connection = JupyterConnectionInfo.CreateLocalTcp();
+        var application = new LifecycleKernelApplication();
+        await using var host = await JupyterKernelHost.StartAsync(
+            connection,
+            application,
+            cancellationToken: deadline.Token);
+
+        // StopAsync awaits Completion, which awaits the lifecycle hook, so no extra wait is needed.
+        await host.StopAsync(deadline.Token);
+
+        application.RestartValues.Should().Equal([false]);
+    }
+
     [Fact(Timeout = 15_000)]
     public async Task FirstIopubSubscriptionPublishesInitializationAndRequestLifecycle()
     {
@@ -569,9 +610,9 @@ public sealed class SelfHostedJupyterIntegrationTests
 
         public JupyterKernelInfo KernelInfo { get; } = new(
             "5.5",
+            new JupyterLanguageInfo("test", "1.0"),
             "jupyter-sharp-test",
-            "1.0",
-            new JupyterLanguageInfo("test", "1.0"));
+            "1.0");
 
         public async ValueTask<JupyterExecuteResult> ExecuteAsync(
             JupyterExecutionContext context,
@@ -658,9 +699,9 @@ public sealed class SelfHostedJupyterIntegrationTests
     {
         public JupyterKernelInfo KernelInfo { get; } = new(
             "5.5",
+            new JupyterLanguageInfo("test", "1.0"),
             "jupyter-sharp-test",
-            "1.0",
-            new JupyterLanguageInfo("test", "1.0"));
+            "1.0");
 
         public ValueTask<JupyterExecuteResult> ExecuteAsync(
             JupyterExecutionContext context,
@@ -668,6 +709,53 @@ public sealed class SelfHostedJupyterIntegrationTests
             CancellationToken cancellationToken)
         {
             return ValueTask.FromResult(JupyterExecuteResult.Ok);
+        }
+    }
+
+    private sealed class LifecycleKernelApplication : IJupyterKernelApplication, IJupyterKernelLifecycle
+    {
+        private readonly List<bool> restartValues = [];
+        private readonly Lock gate = new();
+
+        /// <summary>Completes on the first shutdown notification so tests can await it, not poll.</summary>
+        public TaskCompletionSource Notified { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public JupyterKernelInfo KernelInfo { get; } = new(
+            "5.5",
+            new JupyterLanguageInfo("test", "1.0"),
+            "jupyter-sharp-test",
+            "1.0");
+
+        public IReadOnlyList<bool> RestartValues
+        {
+            get
+            {
+                lock (gate)
+                {
+                    return restartValues.ToArray();
+                }
+            }
+        }
+
+        public int ShutdownCount => RestartValues.Count;
+
+        public ValueTask<JupyterExecuteResult> ExecuteAsync(
+            JupyterExecutionContext context,
+            JupyterExecuteRequest request,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult(JupyterExecuteResult.Ok);
+        }
+
+        public ValueTask OnShutdownAsync(bool restart, CancellationToken cancellationToken = default)
+        {
+            lock (gate)
+            {
+                restartValues.Add(restart);
+            }
+
+            Notified.TrySetResult();
+            return ValueTask.CompletedTask;
         }
     }
 }

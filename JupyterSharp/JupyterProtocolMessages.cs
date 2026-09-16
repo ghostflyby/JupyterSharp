@@ -5,15 +5,32 @@ namespace JupyterSharp;
 
 public sealed record JupyterEmptyContent;
 
+/// <summary>
+///     The <c>kernel_info_reply</c> content.
+/// </summary>
+/// <remarks>
+///     The descriptive fields carry defaults on purpose. Real kernels omit fields the specification
+///     requires — the Ark kernel omits <c>implementation_version</c>, and several kernels omit
+///     <c>status</c> — and failing the whole message would take <c>GetKernelInfoAsync</c> down for a
+///     kernel that otherwise works.
+///     <para>
+///         <c>protocol_version</c> and <c>language_info</c> have no default because they are what
+///         makes the reply meaningful, but note that this does <em>not</em> make them required at
+///         runtime: a missing constructor argument binds to <c>default</c>, so a peer that omits
+///         <c>protocol_version</c> yields <see langword="null" /> in that property instead of a
+///         deserialization failure. See
+///         <c>KnownMessageContentMissingAFieldDeserializesToNullRatherThanFailing</c>.
+///     </para>
+/// </remarks>
 public sealed record JupyterKernelInfo(
     [property: JsonPropertyName("protocol_version")]
     string ProtocolVersion,
-    [property: JsonPropertyName("implementation")]
-    string Implementation,
-    [property: JsonPropertyName("implementation_version")]
-    string ImplementationVersion,
     [property: JsonPropertyName("language_info")]
     JupyterLanguageInfo LanguageInfo,
+    [property: JsonPropertyName("implementation")]
+    string Implementation = "",
+    [property: JsonPropertyName("implementation_version")]
+    string ImplementationVersion = "",
     [property: JsonPropertyName("banner")] string Banner = "",
     [property: JsonPropertyName("help_links")]
     IReadOnlyList<JupyterHelpLink>? HelpLinks = null,

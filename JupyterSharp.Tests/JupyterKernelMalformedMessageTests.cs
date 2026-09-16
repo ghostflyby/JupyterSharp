@@ -193,9 +193,9 @@ public sealed class JupyterKernelMalformedMessageTests
     {
         public JupyterKernelInfo KernelInfo { get; } = new(
             "5.5",
+            new JupyterLanguageInfo("test", "1.0"),
             "jupyter-sharp-test",
-            "1.0",
-            new JupyterLanguageInfo("test", "1.0"));
+            "1.0");
 
         public async ValueTask<JupyterExecuteResult> ExecuteAsync(
             JupyterExecutionContext context,

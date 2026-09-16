@@ -63,8 +63,23 @@ Target classic messaging protocol 5.5 and classic connection files. Readers tole
 compatible older protocol announcements; writers avoid unsupported fields; unsupported capabilities return
 protocol-valid errors or fallback statuses; CurveZMQ and unsupported signature schemes fail explicitly.
 
+Tolerance is asymmetric and deliberate: unknown fields are ignored, and a field a peer omits where the specification
+requires it gets an explicit default once observed in the wild (`JupyterKernelInfo` documents the cases). A missing
+constructor argument binds to `default` rather than raising, so absence never fails deserialization — see the client
+instructions for what that means for callers.
+
 Unless explicitly requested, do not add history, comm, debug, subshell, Jupyter 5.6 registration, automatic
 reconnect, remote provisioners, or another ZeroMQ implementation.
+
+## Extension points
+
+A public extension point is a promise. This ecosystem has repeatedly reserved transport traits and interfaces that
+ended up with one empty implementation and no callers, and an unused public seam cannot be retracted without a
+breaking change. Prefer internal seams plus a real consumer; publicize only when a second independent implementation
+exists or a concrete downstream requirement names it.
+
+Concretely: the client transport seam is internal, the kernel transport seam is internal, and neither should be opened
+to make the two sides symmetric.
 
 A public API or wire change is a breaking change for published packages. Version and document it.
 

@@ -38,9 +38,9 @@ internal sealed class EchoKernel : IJupyterKernelApplication
 {
     public JupyterKernelInfo KernelInfo { get; } = new(
         "5.5",
+        new JupyterLanguageInfo("text", "1.0"),
         "jupyter-sharp-aot",
-        "1.0.0",
-        new JupyterLanguageInfo("text", "1.0"));
+        "1.0.0");
 
     public async ValueTask<JupyterExecuteResult> ExecuteAsync(
         JupyterExecutionContext context,
