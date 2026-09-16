@@ -1,6 +1,0 @@
-<Solution>
-    <Project Path="JupyterSharp/JupyterSharp.csproj"/>
-    <Project Path="JupyterSharp.Client/JupyterSharp.Client.csproj"/>
-    <Project Path="JupyterSharp.Kernel/JupyterSharp.Kernel.csproj"/>
-    <Project Path="JupyterSharp.Tests/JupyterSharp.Tests.csproj"/>
-</Solution>

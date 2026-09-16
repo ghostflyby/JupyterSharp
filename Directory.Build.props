@@ -16,7 +16,7 @@
 
     <!-- Packaging metadata shared by the published packages. -->
     <PropertyGroup>
-        <Authors>JupyterSharp contributors</Authors>
+        <Authors>ghostflyby</Authors>
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <RepositoryType>git</RepositoryType>
