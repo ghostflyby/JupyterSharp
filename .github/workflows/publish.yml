@@ -48,19 +48,19 @@ jobs:
       # unrecognized options to the test app, and the xunit v3 runner spells it
       # -noLogo, so --nologo aborts the run with exit code 5.
       - name: Test
-        run: dotnet test JupyterSharp.slnx -c Release
+        run: dotnet test Ghostflyby.Jupyter.slnx -c Release
 
       # Every packable project gets the tag version. Client and Kernel declare a package
-      # dependency on JupyterSharp; packing them pulls the core project into the same
+      # dependency on Ghostflyby.Jupyter; packing them pulls the core project into the same
       # version, so those nuspec dependencies match the package pushed in this same run.
       - name: Pack
         run: |
           # The csproj enables IncludeSymbols/snupkg; pass them explicitly anyway so
           # the pack intent is visible here (--symbols as a CLI switch is parsed by
           # pwsh into MSBuild as an unknown switch and fails).
-          dotnet pack JupyterSharp/JupyterSharp.csproj -c Release --nologo -o pkg -p:Version=$env:VERSION -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg
-          dotnet pack JupyterSharp.Client/JupyterSharp.Client.csproj -c Release --nologo -o pkg -p:Version=$env:VERSION -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg
-          dotnet pack JupyterSharp.Kernel/JupyterSharp.Kernel.csproj -c Release --nologo -o pkg -p:Version=$env:VERSION -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg
+          dotnet pack Ghostflyby.Jupyter/Ghostflyby.Jupyter.csproj -c Release --nologo -o pkg -p:Version=$env:VERSION -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg
+          dotnet pack Ghostflyby.Jupyter.Client/Ghostflyby.Jupyter.Client.csproj -c Release --nologo -o pkg -p:Version=$env:VERSION -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg
+          dotnet pack Ghostflyby.Jupyter.Kernel/Ghostflyby.Jupyter.Kernel.csproj -c Release --nologo -o pkg -p:Version=$env:VERSION -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg
 
       - name: Upload packages
         uses: actions/upload-artifact@v7
@@ -180,7 +180,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true
           Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $expected = @("JupyterSharp.$env:VERSION.nupkg", "JupyterSharp.Client.$env:VERSION.nupkg", "JupyterSharp.Kernel.$env:VERSION.nupkg")
+          $expected = @("Ghostflyby.Jupyter.$env:VERSION.nupkg", "Ghostflyby.Jupyter.Client.$env:VERSION.nupkg", "Ghostflyby.Jupyter.Kernel.$env:VERSION.nupkg")
           foreach ($name in $expected) {
               $path = "pkgs/$name"
               if (-not (Test-Path -LiteralPath $path)) { throw "missing package: $name" }
@@ -209,7 +209,7 @@ jobs:
           # gets 409 "another copy pending validation" - a race that fails an otherwise
           # successful release. The nupkg pushes stay without it: the exists-check
           # above is their republish gate.
-          foreach ($id in 'JupyterSharp', 'JupyterSharp.Client', 'JupyterSharp.Kernel') {
+          foreach ($id in 'Ghostflyby.Jupyter', 'Ghostflyby.Jupyter.Client', 'Ghostflyby.Jupyter.Kernel') {
               dotnet nuget push "pkgs/$id.$env:VERSION.nupkg" --source https://api.nuget.org/v3/index.json --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"
               dotnet nuget push "pkgs/$id.$env:VERSION.snupkg" --source https://api.nuget.org/v3/index.json --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --skip-duplicate
           }
@@ -217,9 +217,9 @@ jobs:
       - name: Create GitHub release
         run: |
           gh release create "$env:GITHUB_REF_NAME" --title "$env:GITHUB_REF_NAME" `
-            --notes "JupyterSharp $env:VERSION - see https://www.nuget.org/packages/JupyterSharp/$env:VERSION for package details. Symbol packages (.snupkg) are on nuget.org; debuggers fetch them automatically." `
-            "pkgs/JupyterSharp.$env:VERSION.nupkg" "pkgs/JupyterSharp.$env:VERSION.snupkg" `
-            "pkgs/JupyterSharp.Client.$env:VERSION.nupkg" "pkgs/JupyterSharp.Client.$env:VERSION.snupkg" `
-            "pkgs/JupyterSharp.Kernel.$env:VERSION.nupkg" "pkgs/JupyterSharp.Kernel.$env:VERSION.snupkg"
+            --notes "Ghostflyby.Jupyter $env:VERSION - see https://www.nuget.org/packages/Ghostflyby.Jupyter/$env:VERSION for package details. Symbol packages (.snupkg) are on nuget.org; debuggers fetch them automatically." `
+            "pkgs/Ghostflyby.Jupyter.$env:VERSION.nupkg" "pkgs/Ghostflyby.Jupyter.$env:VERSION.snupkg" `
+            "pkgs/Ghostflyby.Jupyter.Client.$env:VERSION.nupkg" "pkgs/Ghostflyby.Jupyter.Client.$env:VERSION.snupkg" `
+            "pkgs/Ghostflyby.Jupyter.Kernel.$env:VERSION.nupkg" "pkgs/Ghostflyby.Jupyter.Kernel.$env:VERSION.snupkg"
         env:
           GH_TOKEN: ${{ github.token }}

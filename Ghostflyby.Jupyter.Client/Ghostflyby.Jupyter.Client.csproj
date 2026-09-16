@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <PackageId>Ghostflyby.Jupyter.Client</PackageId>
+        <Description>A .NET client for Jupyter kernels: ZeroMQ transport, parent/channel/type request correlation, execution output, stdin, completion, and local kernel process management.</Description>
+        <PackageTags>jupyter;jupyter-client;notebook;zeromq;kernel</PackageTags>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Ghostflyby.Jupyter\Ghostflyby.Jupyter.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="ZmqSharp" Version="0.5.1"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Ghostflyby.Jupyter.Tests"/>
+    </ItemGroup>
+
+</Project>

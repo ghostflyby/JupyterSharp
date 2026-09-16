@@ -1,11 +1,11 @@
 # AGENTS.md
 
-Engineering constraints for JupyterSharp: a .NET implementation of the classic Jupyter messaging protocol, its
+Engineering constraints for Ghostflyby.Jupyter: a .NET implementation of the classic Jupyter messaging protocol, its
 client, and its kernel host.
 
 ## Repository purpose
 
-JupyterSharp is a standalone, reusable library set. It has no product consumer inside this repository and must never
+Ghostflyby.Jupyter is a standalone, reusable library set. It has no product consumer inside this repository and must never
 acquire one: the executable that once hosted a Jupyter kernel was removed before extraction, and these libraries are
 published to NuGet for arbitrary Jupyter frontends and kernel authors.
 
@@ -13,25 +13,25 @@ The three shipping packages:
 
 | Package | Role |
 |---|---|
-| `JupyterSharp` | Transport-independent wire protocol: envelopes, HMAC, connection files, MIME, cursors, DTOs |
-| `JupyterSharp.Client` | Client for arbitrary Jupyter kernels: ZeroMQ transport, correlation, executions, local process manager |
-| `JupyterSharp.Kernel` | Server-side kernel host: ROUTER/XPUB/REP transport, dispatch, state publication, interrupt, shutdown |
+| `Ghostflyby.Jupyter` | Transport-independent wire protocol: envelopes, HMAC, connection files, MIME, cursors, DTOs |
+| `Ghostflyby.Jupyter.Client` | Client for arbitrary Jupyter kernels: ZeroMQ transport, correlation, executions, local process manager |
+| `Ghostflyby.Jupyter.Kernel` | Server-side kernel host: ROUTER/XPUB/REP transport, dispatch, state publication, interrupt, shutdown |
 
-`JupyterSharp.Tests` owns the coverage for all three and is never packed.
+`Ghostflyby.Jupyter.Tests` owns the coverage for all three and is never packed.
 
 ## Dependency direction
 
 ```text
-JupyterSharp
+Ghostflyby.Jupyter
     ^
-    |-- JupyterSharp.Client
-    `-- JupyterSharp.Kernel
+    |-- Ghostflyby.Jupyter.Client
+    `-- Ghostflyby.Jupyter.Kernel
 ```
 
 `Client` and `Kernel` must never reference each other. A boundary problem is never solved with a reverse project
 reference; put a small interface in the lower-level owning layer instead.
 
-Only `Client` and `Kernel` carry the `ZmqSharp` dependency. `JupyterSharp` itself must stay free of any transport
+Only `Client` and `Kernel` carry the `ZmqSharp` dependency. `Ghostflyby.Jupyter` itself must stay free of any transport
 implementation.
 
 ## Global invariants
@@ -114,9 +114,9 @@ metadata for protocol DTOs and avoid reflection serialization in hot paths.
 Standard acceptance:
 
 ```bash
-dotnet test JupyterSharp.slnx
-dotnet build JupyterSharp.slnx --no-restore -warnaserror
-dotnet format JupyterSharp.slnx --verify-no-changes --no-restore
+dotnet test Ghostflyby.Jupyter.slnx
+dotnet build Ghostflyby.Jupyter.slnx --no-restore -warnaserror
+dotnet format Ghostflyby.Jupyter.slnx --verify-no-changes --no-restore
 git diff --check
 ```
 
@@ -128,7 +128,7 @@ relevant checks that were skipped.
 
 | Scope | Local instructions |
 |---|---|
-| Wire protocol | `JupyterSharp/AGENTS.md` |
-| Client | `JupyterSharp.Client/AGENTS.md` |
-| Kernel host | `JupyterSharp.Kernel/AGENTS.md` |
-| Coverage | `JupyterSharp.Tests/AGENTS.md` |
+| Wire protocol | `Ghostflyby.Jupyter/AGENTS.md` |
+| Client | `Ghostflyby.Jupyter.Client/AGENTS.md` |
+| Kernel host | `Ghostflyby.Jupyter.Kernel/AGENTS.md` |
+| Coverage | `Ghostflyby.Jupyter.Tests/AGENTS.md` |

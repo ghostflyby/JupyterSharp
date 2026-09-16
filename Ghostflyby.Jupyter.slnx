@@ -1,0 +1,6 @@
+<Solution>
+    <Project Path="Ghostflyby.Jupyter/Ghostflyby.Jupyter.csproj"/>
+    <Project Path="Ghostflyby.Jupyter.Client/Ghostflyby.Jupyter.Client.csproj"/>
+    <Project Path="Ghostflyby.Jupyter.Kernel/Ghostflyby.Jupyter.Kernel.csproj"/>
+    <Project Path="Ghostflyby.Jupyter.Tests/Ghostflyby.Jupyter.Tests.csproj"/>
+</Solution>

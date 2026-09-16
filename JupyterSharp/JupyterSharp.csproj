@@ -1,9 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-    <PropertyGroup>
-        <PackageId>JupyterSharp</PackageId>
-        <Description>Transport-independent Jupyter wire protocol for .NET: messaging protocol 5.5 envelopes, HMAC signing, classic connection files, MIME bundles, and cursor conversion.</Description>
-        <PackageTags>jupyter;jupyter-client;jupyter-kernel;notebook;protocol;messaging</PackageTags>
-    </PropertyGroup>
-
-</Project>

@@ -1,4 +1,4 @@
-# JupyterSharp
+# Ghostflyby.Jupyter
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
@@ -9,18 +9,18 @@ kernels, and a server-side kernel host. Targets `net10.0`, Native AOT compatible
 
 | Package | Role |
 |---|---|
-| [`JupyterSharp`](https://www.nuget.org/packages/JupyterSharp) | Transport-independent wire protocol: envelopes, HMAC signing, connection files, MIME bundles, cursor conversion |
-| [`JupyterSharp.Client`](https://www.nuget.org/packages/JupyterSharp.Client) | Client for arbitrary Jupyter kernels, plus a local kernel process manager |
-| [`JupyterSharp.Kernel`](https://www.nuget.org/packages/JupyterSharp.Kernel) | Server-side kernel host: ROUTER/XPUB/REP transport, dispatch, state publication, interrupt, shutdown |
+| [`Ghostflyby.Jupyter`](https://www.nuget.org/packages/Ghostflyby.Jupyter) | Transport-independent wire protocol: envelopes, HMAC signing, connection files, MIME bundles, cursor conversion |
+| [`Ghostflyby.Jupyter.Client`](https://www.nuget.org/packages/Ghostflyby.Jupyter.Client) | Client for arbitrary Jupyter kernels, plus a local kernel process manager |
+| [`Ghostflyby.Jupyter.Kernel`](https://www.nuget.org/packages/Ghostflyby.Jupyter.Kernel) | Server-side kernel host: ROUTER/XPUB/REP transport, dispatch, state publication, interrupt, shutdown |
 
-`JupyterSharp` has no transport dependency. Only `Client` and `Kernel` depend on
+`Ghostflyby.Jupyter` has no transport dependency. Only `Client` and `Kernel` depend on
 [ZmqSharp](https://www.nuget.org/packages/ZmqSharp) for ZeroMQ; the wire protocol package is usable on its own.
 
 ## Client
 
 ```csharp
-using JupyterSharp;
-using JupyterSharp.Client;
+using Ghostflyby.Jupyter;
+using Ghostflyby.Jupyter.Client;
 
 var connection = await JupyterConnectionInfo.ReadFileAsync("/path/to/kernel-1234.json");
 await using var client = await JupyterClient.ConnectAsync(connection);
@@ -45,8 +45,8 @@ parented `idle` have arrived, in either order.
 Kernel authors implement the application interfaces and never touch ZeroMQ or wire envelopes:
 
 ```csharp
-using JupyterSharp;
-using JupyterSharp.Kernel;
+using Ghostflyby.Jupyter;
+using Ghostflyby.Jupyter.Kernel;
 
 sealed class MyKernel : IJupyterKernelApplication
 {
@@ -98,9 +98,9 @@ History, comm-broadcast beyond the classic comm messages, debug, and subshell ar
 ## Building
 
 ```bash
-dotnet build JupyterSharp.slnx -warnaserror
-dotnet test JupyterSharp.slnx
-dotnet format JupyterSharp.slnx --verify-no-changes --no-restore
+dotnet build Ghostflyby.Jupyter.slnx -warnaserror
+dotnet test Ghostflyby.Jupyter.slnx
+dotnet format Ghostflyby.Jupyter.slnx --verify-no-changes --no-restore
 ```
 
 ## License

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- Consumer-facing AOT verification: references the real library projects and is
+         published with PublishAot on every supported RID by the native-aot CI job.
+         IsAotCompatible on the libraries only proves they compile against the AOT
+         analyzers; publishing and running a real AOT host is what proves the trim and
+         AOT annotations, and the source-generated JSON, actually work at runtime.
+         Kept out of the solution so it never affects the library build or test run. -->
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <PublishAot>true</PublishAot>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <RootNamespace>Ghostflyby.Jupyter.Aot</RootNamespace>
+        <IsPackable>false</IsPackable>
+        <!-- The host itself is the AOT check; the analyzers run as part of PublishAot. -->
+        <IsAotCompatible>false</IsAotCompatible>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Ghostflyby.Jupyter.Client\Ghostflyby.Jupyter.Client.csproj"/>
+        <ProjectReference Include="..\Ghostflyby.Jupyter.Kernel\Ghostflyby.Jupyter.Kernel.csproj"/>
+    </ItemGroup>
+
+</Project>
