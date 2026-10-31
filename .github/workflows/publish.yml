@@ -76,8 +76,6 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    # id-token: write lets NuGet/login exchange the OIDC token for a short-lived NuGet
-    # API key (Trusted Publishing); contents: write is for gh release create.
     permissions:
       id-token: write
       attestations: write
@@ -113,7 +111,7 @@ jobs:
           # the republish gate: it gives traceability-only tag pushes (a re-tag of a
           # historical version) a clear early exit instead of a push that cannot succeed.
           # All three packages: a partial previous release must not be silently re-pushed.
-          foreach ($id in 'jupytersharp', 'jupytersharp.client', 'jupytersharp.kernel') {
+          foreach ($id in 'ghostflyby.jupyter', 'ghostflyby.jupyter.client', 'ghostflyby.jupyter.kernel') {
               $index = try { Invoke-RestMethod -Uri "https://api.nuget.org/v3-flatcontainer/$id/index.json" -TimeoutSec 30 } catch { $null }
               if ($index -and ($index.versions -contains $version)) {
                   throw "version '$version' of $id is already published on nuget.org - refusing to republish (traceability tag only)"
@@ -207,12 +205,6 @@ jobs:
 
       - name: Publish to nuget.org
         run: |
-          # Symbol packages push to nuget.org with the same key (no extra auth).
-          # The snupkg pushes carry --skip-duplicate: dotnet push retries a fresh
-          # snupkg PUT after nuget.org already accepted it (Created), and the retry
-          # gets 409 "another copy pending validation" - a race that fails an otherwise
-          # successful release. The nupkg pushes stay without it: the exists-check
-          # above is their republish gate.
           foreach ($id in 'Ghostflyby.Jupyter', 'Ghostflyby.Jupyter.Client', 'Ghostflyby.Jupyter.Kernel') {
               dotnet nuget push "pkgs/$id.$env:VERSION.nupkg" --source https://api.nuget.org/v3/index.json --api-key "$env:NUGET_API_KEY"
           }

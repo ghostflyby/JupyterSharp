@@ -180,3 +180,11 @@ dotnet_naming_style.t_pascal_case_style.required_prefix = T
 dotnet_naming_style.camel_case_style.capitalization = camel_case
 dotnet_naming_style.underscore_camel_case_style.capitalization = camel_case
 dotnet_naming_style.underscore_camel_case_style.required_prefix = _
+
+# xUnit.net v3 ships analyzers that ask async tests to thread
+# TestContext.Current.CancellationToken through every awaited call (xUnit1051) and
+# to reference it in tests carrying a Timeout (xUnit1069). Adopting that guidance is
+# worthwhile but is a separate, test-wide change; kept at suggestion level so the
+# migration itself stays reviewable and `dotnet format --verify-no-changes` stays green.
+dotnet_diagnostic.xUnit1051.severity = suggestion
+dotnet_diagnostic.xUnit1069.severity = suggestion
