@@ -1,7 +1,6 @@
 using System.Buffers;
 using System.Text.Json;
 using FluentAssertions;
-using Ghostflyby.Jupyter;
 using Ghostflyby.Jupyter.Client;
 using Ghostflyby.Jupyter.Kernel;
 using ZmqSharp;
@@ -102,7 +101,7 @@ public sealed class JupyterKernelMalformedMessageTests
         var malformedReply = RawMessage(
             "input_reply",
             JsonSerializer.SerializeToElement(new { value = 42 }),
-            input!.Header);
+            input.Header);
         await SendAsync(stdin, serializer, malformedReply, cancellationToken);
 
         var completion = await execution.Completion.WaitAsync(cancellationToken);

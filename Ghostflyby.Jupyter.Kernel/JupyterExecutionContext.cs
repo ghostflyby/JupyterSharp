@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
-using Ghostflyby.Jupyter;
 
 namespace Ghostflyby.Jupyter.Kernel;
 
@@ -9,23 +8,23 @@ public sealed class JupyterExecutionContext
     private static readonly IReadOnlyDictionary<string, JsonElement> EmptyMetadata =
         new ReadOnlyDictionary<string, JsonElement>(new Dictionary<string, JsonElement>());
 
-    private readonly Func<bool, CancellationToken, ValueTask> clearOutput;
-    private readonly Func<MimeBundle, IReadOnlyDictionary<string, JsonElement>, CancellationToken, ValueTask> display;
+    private readonly Func<bool, CancellationToken, ValueTask> _clearOutput;
+    private readonly Func<MimeBundle, IReadOnlyDictionary<string, JsonElement>, CancellationToken, ValueTask> _display;
 
     private readonly Func<MimeBundle, JupyterDisplayId?, IReadOnlyDictionary<string, JsonElement>, CancellationToken,
-        ValueTask<JupyterDisplayId>> displayTracked;
+        ValueTask<JupyterDisplayId>> _displayTracked;
 
-    private readonly Func<string, string, IReadOnlyList<string>, CancellationToken, ValueTask> publishError;
+    private readonly Func<string, string, IReadOnlyList<string>, CancellationToken, ValueTask> _publishError;
 
     private readonly Func<MimeBundle, IReadOnlyDictionary<string, JsonElement>, CancellationToken, ValueTask>
-        publishResult;
+        _publishResult;
 
-    private readonly Func<string, bool, CancellationToken, Task<string>> requestInput;
+    private readonly Func<string, bool, CancellationToken, Task<string>> _requestInput;
 
     private readonly Func<JupyterDisplayId, MimeBundle, IReadOnlyDictionary<string, JsonElement>, CancellationToken,
-        ValueTask> updateDisplay;
+        ValueTask> _updateDisplay;
 
-    private readonly Func<string, string, CancellationToken, ValueTask> writeStream;
+    private readonly Func<string, string, CancellationToken, ValueTask> _writeStream;
 
     internal JupyterExecutionContext(
         JupyterMessageId requestId,
@@ -43,14 +42,14 @@ public sealed class JupyterExecutionContext
     {
         RequestId = requestId;
         ExecutionCount = executionCount;
-        this.writeStream = writeStream;
-        this.display = display;
-        this.displayTracked = displayTracked;
-        this.updateDisplay = updateDisplay;
-        this.clearOutput = clearOutput;
-        this.publishResult = publishResult;
-        this.publishError = publishError;
-        this.requestInput = requestInput;
+        this._writeStream = writeStream;
+        this._display = display;
+        this._displayTracked = displayTracked;
+        this._updateDisplay = updateDisplay;
+        this._clearOutput = clearOutput;
+        this._publishResult = publishResult;
+        this._publishError = publishError;
+        this._requestInput = requestInput;
     }
 
     public JupyterMessageId RequestId { get; }
@@ -59,12 +58,12 @@ public sealed class JupyterExecutionContext
 
     public ValueTask WriteStdoutAsync(string text, CancellationToken cancellationToken = default)
     {
-        return writeStream("stdout", text, cancellationToken);
+        return _writeStream("stdout", text, cancellationToken);
     }
 
     public ValueTask WriteStderrAsync(string text, CancellationToken cancellationToken = default)
     {
-        return writeStream("stderr", text, cancellationToken);
+        return _writeStream("stderr", text, cancellationToken);
     }
 
     public ValueTask DisplayAsync(
@@ -72,7 +71,7 @@ public sealed class JupyterExecutionContext
         IReadOnlyDictionary<string, JsonElement>? metadata = null,
         CancellationToken cancellationToken = default)
     {
-        return display(data, metadata ?? EmptyMetadata, cancellationToken);
+        return _display(data, metadata ?? EmptyMetadata, cancellationToken);
     }
 
     public ValueTask<JupyterDisplayId> DisplayTrackedAsync(
@@ -81,7 +80,7 @@ public sealed class JupyterExecutionContext
         IReadOnlyDictionary<string, JsonElement>? metadata = null,
         CancellationToken cancellationToken = default)
     {
-        return displayTracked(data, displayId, metadata ?? EmptyMetadata, cancellationToken);
+        return _displayTracked(data, displayId, metadata ?? EmptyMetadata, cancellationToken);
     }
 
     public ValueTask UpdateDisplayAsync(
@@ -90,14 +89,14 @@ public sealed class JupyterExecutionContext
         IReadOnlyDictionary<string, JsonElement>? metadata = null,
         CancellationToken cancellationToken = default)
     {
-        return updateDisplay(displayId, data, metadata ?? EmptyMetadata, cancellationToken);
+        return _updateDisplay(displayId, data, metadata ?? EmptyMetadata, cancellationToken);
     }
 
     public ValueTask ClearOutputAsync(
         bool wait = false,
         CancellationToken cancellationToken = default)
     {
-        return clearOutput(wait, cancellationToken);
+        return _clearOutput(wait, cancellationToken);
     }
 
     public ValueTask PublishResultAsync(
@@ -105,7 +104,7 @@ public sealed class JupyterExecutionContext
         IReadOnlyDictionary<string, JsonElement>? metadata = null,
         CancellationToken cancellationToken = default)
     {
-        return publishResult(data, metadata ?? EmptyMetadata, cancellationToken);
+        return _publishResult(data, metadata ?? EmptyMetadata, cancellationToken);
     }
 
     /// <summary>Publishes a Jupyter execution error without failing the enclosing application execution.</summary>
@@ -118,7 +117,7 @@ public sealed class JupyterExecutionContext
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(value);
         ArgumentNullException.ThrowIfNull(traceback);
-        return publishError(name, value, traceback, cancellationToken);
+        return _publishError(name, value, traceback, cancellationToken);
     }
 
     public Task<string> RequestInputAsync(
@@ -126,6 +125,6 @@ public sealed class JupyterExecutionContext
         bool password = false,
         CancellationToken cancellationToken = default)
     {
-        return requestInput(prompt, password, cancellationToken);
+        return _requestInput(prompt, password, cancellationToken);
     }
 }

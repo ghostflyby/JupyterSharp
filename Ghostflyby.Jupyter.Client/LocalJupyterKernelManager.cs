@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using Ghostflyby.Jupyter;
 
 namespace Ghostflyby.Jupyter.Client;
 
@@ -87,32 +86,32 @@ public sealed class JupyterKernelStartupException : Exception
 public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
 {
     private const int SigInt = 2;
-    private readonly JupyterKernelSpec kernelSpec;
-    private readonly SemaphoreSlim lifecycleGate = new(1, 1);
-    private readonly LocalJupyterKernelManagerOptions options;
-    private JupyterClient? client;
-    private string? connectionFile;
-    private int disposeState;
-    private KernelProcess? process;
+    private readonly JupyterKernelSpec _kernelSpec;
+    private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
+    private readonly LocalJupyterKernelManagerOptions _options;
+    private JupyterClient? _client;
+    private string? _connectionFile;
+    private int _disposeState;
+    private KernelProcess? _process;
 
     private LocalJupyterKernelManager(JupyterKernelSpec kernelSpec, LocalJupyterKernelManagerOptions options)
     {
-        this.kernelSpec = kernelSpec;
-        this.options = options;
+        this._kernelSpec = kernelSpec;
+        this._options = options;
     }
 
-    public IJupyterClient Client => client
+    public IJupyterClient Client => _client
                                     ?? throw new InvalidOperationException("The Jupyter kernel is not running.");
 
-    public int? ProcessId => process?.Id;
+    public int? ProcessId => _process?.Id;
 
     public async Task InterruptAsync(CancellationToken cancellationToken = default)
     {
-        await lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             ThrowIfDisposed();
-            if (string.Equals(kernelSpec.InterruptMode, "message", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(_kernelSpec.InterruptMode, "message", StringComparison.OrdinalIgnoreCase))
             {
                 await RequireClient().InterruptAsync(cancellationToken).ConfigureAwait(false);
                 return;
@@ -122,13 +121,13 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
         }
         finally
         {
-            lifecycleGate.Release();
+            _lifecycleGate.Release();
         }
     }
 
     public async Task RestartAsync(CancellationToken cancellationToken = default)
     {
-        await lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             ThrowIfDisposed();
@@ -137,13 +136,13 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
         }
         finally
         {
-            lifecycleGate.Release();
+            _lifecycleGate.Release();
         }
     }
 
     public async Task ShutdownAsync(CancellationToken cancellationToken = default)
     {
-        await lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             ThrowIfDisposed();
@@ -151,13 +150,13 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
         }
         finally
         {
-            lifecycleGate.Release();
+            _lifecycleGate.Release();
         }
     }
 
     public async Task TerminateAsync(CancellationToken cancellationToken = default)
     {
-        await lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             ThrowIfDisposed();
@@ -165,23 +164,23 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
         }
         finally
         {
-            lifecycleGate.Release();
+            _lifecycleGate.Release();
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref disposeState, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposeState, 1) != 0) return;
 
-        await lifecycleGate.WaitAsync().ConfigureAwait(false);
+        await _lifecycleGate.WaitAsync().ConfigureAwait(false);
         try
         {
             await StopCoreAsync(false, false, CancellationToken.None).ConfigureAwait(false);
         }
         finally
         {
-            lifecycleGate.Release();
-            lifecycleGate.Dispose();
+            _lifecycleGate.Release();
+            _lifecycleGate.Dispose();
         }
     }
 
@@ -206,25 +205,25 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
     private async Task StartCoreAsync(CancellationToken cancellationToken)
     {
         var connectionInfo = JupyterConnectionInfo.CreateLocalTcp();
-        var runtimeDirectory = options.RuntimeDirectory ?? Path.GetTempPath();
+        var runtimeDirectory = _options.RuntimeDirectory ?? Path.GetTempPath();
         Directory.CreateDirectory(runtimeDirectory);
-        connectionFile = Path.Combine(runtimeDirectory, $"jupyter-sharp-kernel-{Guid.NewGuid():N}.json");
-        await connectionInfo.WriteFileAsync(connectionFile, cancellationToken).ConfigureAwait(false);
+        _connectionFile = Path.Combine(runtimeDirectory, $"jupyter-sharp-kernel-{Guid.NewGuid():N}.json");
+        await connectionInfo.WriteFileAsync(_connectionFile, cancellationToken).ConfigureAwait(false);
 
-        process = StartProcess(connectionFile);
-        client = await JupyterClient.ConnectAsync(connectionInfo, cancellationToken: cancellationToken)
+        _process = StartProcess(_connectionFile);
+        _client = await JupyterClient.ConnectAsync(connectionInfo, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
-        using var timeout = new CancellationTokenSource(options.StartupTimeout);
+        using var timeout = new CancellationTokenSource(_options.StartupTimeout);
         using var startup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
-        var readiness = client.WaitForReadyAsync(startup.Token);
-        var first = await Task.WhenAny(readiness, process.Exit).ConfigureAwait(false);
-        if (ReferenceEquals(first, process.Exit))
+        var readiness = _client.WaitForReadyAsync(startup.Token);
+        var first = await Task.WhenAny(readiness, _process.Exit).ConfigureAwait(false);
+        if (ReferenceEquals(first, _process.Exit))
         {
-            await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            await _process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
             await startup.CancelAsync().ConfigureAwait(false);
             await ObserveStartupReadinessAsync(readiness, startup.Token).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            throw process.CreateStartupException(kernelSpec.DisplayName);
+            throw _process.CreateStartupException(_kernelSpec.DisplayName);
         }
 
         try
@@ -234,19 +233,19 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
         catch (OperationCanceledException exception) when (
             timeout.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
-            throw process.CreateStartupException(kernelSpec.DisplayName, true, exception);
+            throw _process.CreateStartupException(_kernelSpec.DisplayName, true, exception);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            if (process.HasExited) await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            if (_process.HasExited) await _process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
 
-            throw process.CreateStartupException(kernelSpec.DisplayName, innerException: exception);
+            throw _process.CreateStartupException(_kernelSpec.DisplayName, innerException: exception);
         }
 
-        if (process.HasExited)
+        if (_process.HasExited)
         {
-            await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
-            throw process.CreateStartupException(kernelSpec.DisplayName);
+            await _process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            throw _process.CreateStartupException(_kernelSpec.DisplayName);
         }
     }
 
@@ -255,12 +254,12 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
         bool force,
         CancellationToken cancellationToken)
     {
-        var currentClient = client;
-        var currentProcess = process;
-        client = null;
-        process = null;
+        var currentClient = _client;
+        var currentProcess = _process;
+        _client = null;
+        _process = null;
         Exception? failure = null;
-        using var timeout = new CancellationTokenSource(options.ShutdownTimeout);
+        using var timeout = new CancellationTokenSource(_options.ShutdownTimeout);
         using var shutdown = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
 
         try
@@ -317,32 +316,32 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
             !cancellationToken.IsCancellationRequested)
             return;
 
-        if (failure is not null && Volatile.Read(ref disposeState) == 0) ExceptionDispatchInfo.Capture(failure).Throw();
+        if (failure is not null && Volatile.Read(ref _disposeState) == 0) ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     private KernelProcess StartProcess(string path)
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName = kernelSpec.Argv[0],
+            FileName = _kernelSpec.Argv[0],
             RedirectStandardError = true,
             RedirectStandardOutput = true,
             UseShellExecute = false,
-            WorkingDirectory = options.WorkingDirectory ?? string.Empty
+            WorkingDirectory = _options.WorkingDirectory ?? string.Empty
         };
 
-        if (options.ClearInheritedEnvironment) startInfo.Environment.Clear();
+        if (_options.ClearInheritedEnvironment) startInfo.Environment.Clear();
 
-        foreach (var environment in options.Environment) startInfo.Environment[environment.Key] = environment.Value;
+        foreach (var environment in _options.Environment) startInfo.Environment[environment.Key] = environment.Value;
 
-        foreach (var argument in kernelSpec.Argv.Skip(1))
+        foreach (var argument in _kernelSpec.Argv.Skip(1))
             startInfo.ArgumentList.Add(argument.Replace("{connection_file}", path, StringComparison.Ordinal));
 
-        foreach (var environment in kernelSpec.Environment) startInfo.Environment[environment.Key] = environment.Value;
+        foreach (var environment in _kernelSpec.Environment) startInfo.Environment[environment.Key] = environment.Value;
 
         return KernelProcess.Start(
             startInfo,
-            kernelSpec.DisplayName,
+            _kernelSpec.DisplayName,
             [
                 path,
                 .. startInfo.Environment.Values.OfType<string>(),
@@ -361,14 +360,14 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
 
     private JupyterClient RequireClient()
     {
-        return client
+        return _client
                ?? throw new InvalidOperationException(
                    "The Jupyter kernel is not running.");
     }
 
     private Process RequireProcess()
     {
-        return process?.Value
+        return _process?.Value
                ?? throw new InvalidOperationException("The Jupyter kernel is not running.");
     }
 
@@ -389,25 +388,25 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
 
     private void DeleteConnectionFile()
     {
-        if (connectionFile is not null && File.Exists(connectionFile)) File.Delete(connectionFile);
+        if (_connectionFile is not null && File.Exists(_connectionFile)) File.Delete(_connectionFile);
 
-        connectionFile = null;
+        _connectionFile = null;
     }
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(Volatile.Read(ref disposeState) != 0, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeState) != 0, this);
     }
 
     private sealed class KernelProcess : IDisposable
     {
         private const int MaxDiagnosticCharacters = 8 * 1024;
         private const int MaxDiagnosticLineCharacters = 1024;
-        private readonly StringBuilder diagnostics = new();
-        private readonly TaskCompletionSource<int> exit =
+        private readonly StringBuilder _diagnostics = new();
+        private readonly TaskCompletionSource<int> _exit =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private readonly Lock gate = new();
-        private readonly string[] redactions;
+        private readonly Lock _gate = new();
+        private readonly string[] _redactions;
 
         private KernelProcess(ProcessStartInfo startInfo, IEnumerable<string> redactions)
         {
@@ -415,7 +414,7 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
             Value.Exited += OnExited;
             Value.OutputDataReceived += IgnoreOutput;
             Value.ErrorDataReceived += OnErrorDataReceived;
-            this.redactions = redactions
+            this._redactions = redactions
                 .Where(static value => value.Length >= 8)
                 .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
                 .OrderByDescending(static value => value.Length)
@@ -428,7 +427,7 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
 
         internal bool HasExited => Value.HasExited;
 
-        internal Task<int> Exit => exit.Task;
+        internal Task<int> Exit => _exit.Task;
 
         public void Dispose()
         {
@@ -468,8 +467,8 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
         internal async Task WaitForExitAsync(CancellationToken cancellationToken)
         {
             await Value.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-            exit.TrySetResult(Value.ExitCode);
-            await exit.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            _exit.TrySetResult(Value.ExitCode);
+            await _exit.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
 
         internal JupyterKernelStartupException CreateStartupException(
@@ -479,9 +478,9 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
         {
             int? exitCode = HasExited ? Value.ExitCode : null;
             string standardError;
-            lock (gate)
+            lock (_gate)
             {
-                standardError = diagnostics.ToString();
+                standardError = _diagnostics.ToString();
             }
 
             return new JupyterKernelStartupException(
@@ -500,11 +499,11 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
         {
             try
             {
-                exit.TrySetResult(Value.ExitCode);
+                _exit.TrySetResult(Value.ExitCode);
             }
             catch (InvalidOperationException)
             {
-                exit.TrySetResult(-1);
+                _exit.TrySetResult(-1);
             }
         }
 
@@ -512,7 +511,7 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
         {
             if (args.Data is not { Length: > 0 } line) return;
 
-            foreach (var redaction in redactions)
+            foreach (var redaction in _redactions)
                 line = line.Replace(
                     redaction,
                     "[redacted]",
@@ -521,13 +520,13 @@ public sealed partial class LocalJupyterKernelManager : IJupyterKernelManager
             var cleaned = string.Concat(line.Select(static character => char.IsControl(character) ? '?' : character));
             if (cleaned.Length > MaxDiagnosticLineCharacters) cleaned = cleaned[..MaxDiagnosticLineCharacters];
 
-            lock (gate)
+            lock (_gate)
             {
-                if (diagnostics.Length >= MaxDiagnosticCharacters) return;
+                if (_diagnostics.Length >= MaxDiagnosticCharacters) return;
 
-                if (diagnostics.Length > 0) diagnostics.Append(' ');
-                var remaining = MaxDiagnosticCharacters - diagnostics.Length;
-                diagnostics.Append(cleaned.AsSpan(0, Math.Min(cleaned.Length, remaining)));
+                if (_diagnostics.Length > 0) _diagnostics.Append(' ');
+                var remaining = MaxDiagnosticCharacters - _diagnostics.Length;
+                _diagnostics.Append(cleaned.AsSpan(0, Math.Min(cleaned.Length, remaining)));
             }
         }
     }

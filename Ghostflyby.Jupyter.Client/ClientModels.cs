@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Ghostflyby.Jupyter;
 using Ghostflyby.Jupyter.Client.Transport;
 
 namespace Ghostflyby.Jupyter.Client;

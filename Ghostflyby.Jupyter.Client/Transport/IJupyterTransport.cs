@@ -1,5 +1,3 @@
-using Ghostflyby.Jupyter;
-
 namespace Ghostflyby.Jupyter.Client.Transport;
 
 /// <summary>

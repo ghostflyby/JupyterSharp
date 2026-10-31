@@ -1,5 +1,3 @@
-using Ghostflyby.Jupyter;
-
 namespace Ghostflyby.Jupyter.Kernel;
 
 public interface IJupyterKernel : IAsyncDisposable

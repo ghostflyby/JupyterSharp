@@ -1,4 +1,3 @@
-using Ghostflyby.Jupyter;
 using Ghostflyby.Jupyter.Client.Protocol;
 using Ghostflyby.Jupyter.Client.Transport;
 
@@ -6,29 +5,29 @@ namespace Ghostflyby.Jupyter.Client;
 
 public sealed class JupyterClient : IJupyterClient
 {
-    private readonly IJupyterProtocolSession protocolSession;
+    private readonly IJupyterProtocolSession _protocolSession;
 
     private JupyterClient(IJupyterProtocolSession protocolSession)
     {
-        this.protocolSession = protocolSession;
+        this._protocolSession = protocolSession;
     }
 
     public IAsyncEnumerable<JupyterClientEvent> WatchEventsAsync(
         CancellationToken cancellationToken = default)
     {
-        return protocolSession.WatchEventsAsync(cancellationToken);
+        return _protocolSession.WatchEventsAsync(cancellationToken);
     }
 
     public Task<JupyterKernelInfo> GetKernelInfoAsync(CancellationToken cancellationToken = default)
     {
-        return protocolSession.GetKernelInfoAsync(cancellationToken);
+        return _protocolSession.GetKernelInfoAsync(cancellationToken);
     }
 
     public Task<IJupyterExecution> ExecuteAsync(
         JupyterExecuteRequest request,
         CancellationToken cancellationToken = default)
     {
-        return protocolSession.StartExecutionAsync(request, cancellationToken);
+        return _protocolSession.StartExecutionAsync(request, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -37,38 +36,38 @@ public sealed class JupyterClient : IJupyterClient
         JupyterExecutionOptions options,
         CancellationToken cancellationToken = default)
     {
-        return protocolSession.StartExecutionAsync(request, options, cancellationToken);
+        return _protocolSession.StartExecutionAsync(request, options, cancellationToken);
     }
 
     public Task<JupyterCompleteReply> CompleteAsync(
         JupyterCompleteRequest request,
         CancellationToken cancellationToken = default)
     {
-        return protocolSession.CompleteAsync(request, cancellationToken);
+        return _protocolSession.CompleteAsync(request, cancellationToken);
     }
 
     public Task<JupyterInspectReply> InspectAsync(
         JupyterInspectRequest request,
         CancellationToken cancellationToken = default)
     {
-        return protocolSession.InspectAsync(request, cancellationToken);
+        return _protocolSession.InspectAsync(request, cancellationToken);
     }
 
     public Task<JupyterIsCompleteReply> IsCompleteAsync(
         JupyterIsCompleteRequest request,
         CancellationToken cancellationToken = default)
     {
-        return protocolSession.IsCompleteAsync(request, cancellationToken);
+        return _protocolSession.IsCompleteAsync(request, cancellationToken);
     }
 
     public Task<TimeSpan> PingAsync(CancellationToken cancellationToken = default)
     {
-        return protocolSession.PingAsync(cancellationToken);
+        return _protocolSession.PingAsync(cancellationToken);
     }
 
     public ValueTask DisposeAsync()
     {
-        return protocolSession.DisposeAsync();
+        return _protocolSession.DisposeAsync();
     }
 
     public static async Task<JupyterClient> ConnectAsync(
@@ -93,23 +92,23 @@ public sealed class JupyterClient : IJupyterClient
 
     internal Task<JupyterKernelInfo> WaitForReadyAsync(CancellationToken cancellationToken = default)
     {
-        return protocolSession.WaitForReadyAsync(cancellationToken);
+        return _protocolSession.WaitForReadyAsync(cancellationToken);
     }
 
     internal Task<JupyterInterruptReply> InterruptAsync(CancellationToken cancellationToken = default)
     {
-        return protocolSession.InterruptAsync(cancellationToken);
+        return _protocolSession.InterruptAsync(cancellationToken);
     }
 
     internal ValueTask SendCommAsync(JupyterMessage message, CancellationToken cancellationToken = default)
     {
-        return protocolSession.SendCommAsync(message, cancellationToken);
+        return _protocolSession.SendCommAsync(message, cancellationToken);
     }
 
     internal Task<JupyterShutdownReply> ShutdownAsync(
         bool restart,
         CancellationToken cancellationToken = default)
     {
-        return protocolSession.ShutdownAsync(restart, cancellationToken);
+        return _protocolSession.ShutdownAsync(restart, cancellationToken);
     }
 }
