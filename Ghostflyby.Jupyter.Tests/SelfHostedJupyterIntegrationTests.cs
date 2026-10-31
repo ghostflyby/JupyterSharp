@@ -2,7 +2,6 @@ using System.Buffers;
 using System.Text.Json;
 using System.Threading.Channels;
 using FluentAssertions;
-using Ghostflyby.Jupyter;
 using Ghostflyby.Jupyter.Client;
 using Ghostflyby.Jupyter.Kernel;
 using ZmqSharp;
@@ -532,7 +531,7 @@ public sealed class SelfHostedJupyterIntegrationTests
         IJupyterInspectionProvider, IJupyterCodeCompletenessProvider, IJupyterCommSink
     {
         private readonly TaskCompletionSource<(JupyterExecutionContext Context, JupyterDisplayId DisplayId)>
-            lateDisplay = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            _lateDisplay = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public TaskCompletionSource WaitStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -653,7 +652,7 @@ public sealed class SelfHostedJupyterIntegrationTests
                     LateDisplayId = await context.DisplayTrackedAsync(
                         TextBundle("initial"),
                         cancellationToken: cancellationToken);
-                    lateDisplay.TrySetResult((context, LateDisplayId));
+                    _lateDisplay.TrySetResult((context, LateDisplayId));
                     break;
                 case "invalid-display":
                     await context.UpdateDisplayAsync(
@@ -679,7 +678,7 @@ public sealed class SelfHostedJupyterIntegrationTests
 
         public async Task PublishLateDisplayUpdateAsync(CancellationToken cancellationToken)
         {
-            var state = await lateDisplay.Task.WaitAsync(cancellationToken);
+            var state = await _lateDisplay.Task.WaitAsync(cancellationToken);
             await state.Context.UpdateDisplayAsync(
                 state.DisplayId,
                 TextBundle("late"),
@@ -714,8 +713,8 @@ public sealed class SelfHostedJupyterIntegrationTests
 
     private sealed class LifecycleKernelApplication : IJupyterKernelApplication, IJupyterKernelLifecycle
     {
-        private readonly List<bool> restartValues = [];
-        private readonly Lock gate = new();
+        private readonly List<bool> _restartValues = [];
+        private readonly Lock _gate = new();
 
         /// <summary>Completes on the first shutdown notification so tests can await it, not poll.</summary>
         public TaskCompletionSource Notified { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -730,9 +729,9 @@ public sealed class SelfHostedJupyterIntegrationTests
         {
             get
             {
-                lock (gate)
+                lock (_gate)
                 {
-                    return restartValues.ToArray();
+                    return _restartValues.ToArray();
                 }
             }
         }
@@ -749,9 +748,9 @@ public sealed class SelfHostedJupyterIntegrationTests
 
         public ValueTask OnShutdownAsync(bool restart, CancellationToken cancellationToken = default)
         {
-            lock (gate)
+            lock (_gate)
             {
-                restartValues.Add(restart);
+                _restartValues.Add(restart);
             }
 
             Notified.TrySetResult();

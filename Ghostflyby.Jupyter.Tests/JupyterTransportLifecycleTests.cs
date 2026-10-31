@@ -1,6 +1,4 @@
 using FluentAssertions;
-using Ghostflyby.Jupyter;
-using Ghostflyby.Jupyter.Client;
 using Ghostflyby.Jupyter.Client.Transport;
 using Ghostflyby.Jupyter.Kernel;
 using Ghostflyby.Jupyter.Kernel.Transport;

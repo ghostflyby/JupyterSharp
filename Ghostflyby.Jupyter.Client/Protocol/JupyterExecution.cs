@@ -1,6 +1,5 @@
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
-using Ghostflyby.Jupyter;
 
 namespace Ghostflyby.Jupyter.Client.Protocol;
 
@@ -11,8 +10,8 @@ internal sealed class JupyterExecution(
     Func<JupyterInputRequest, string, CancellationToken, Task> replyInput,
     Func<ValueTask> abandon) : IJupyterExecution
 {
-    private int disposed;
-    private int outputEnumerationStarted;
+    private int _disposed;
+    private int _outputEnumerationStarted;
 
     public JupyterMessageId RequestId => requestId;
 
@@ -25,7 +24,7 @@ internal sealed class JupyterExecution(
         string value,
         CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         if (request.RequestId != requestId)
             throw new ArgumentException("The input request belongs to a different execution.", nameof(request));
 
@@ -34,7 +33,7 @@ internal sealed class JupyterExecution(
 
     public ValueTask DisposeAsync()
     {
-        return Interlocked.Exchange(ref disposed, 1) == 0
+        return Interlocked.Exchange(ref _disposed, 1) == 0
             ? abandon()
             : ValueTask.CompletedTask;
     }
@@ -42,7 +41,7 @@ internal sealed class JupyterExecution(
     private async IAsyncEnumerable<JupyterOutput> ReadOutputsAsync(
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (Interlocked.Exchange(ref outputEnumerationStarted, 1) != 0)
+        if (Interlocked.Exchange(ref _outputEnumerationStarted, 1) != 0)
             throw new InvalidOperationException("Jupyter execution output is a single-consumer stream.");
 
         await foreach (var output in outputs.ReadAllAsync(cancellationToken).ConfigureAwait(false)) yield return output;

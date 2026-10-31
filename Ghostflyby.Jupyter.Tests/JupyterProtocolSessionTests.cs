@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using FluentAssertions;
-using Ghostflyby.Jupyter;
 using Ghostflyby.Jupyter.Client;
 using Ghostflyby.Jupyter.Client.Protocol;
 using Ghostflyby.Jupyter.Client.Transport;

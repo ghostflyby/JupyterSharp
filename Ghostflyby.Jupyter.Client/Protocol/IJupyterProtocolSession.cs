@@ -1,5 +1,3 @@
-using Ghostflyby.Jupyter;
-
 namespace Ghostflyby.Jupyter.Client.Protocol;
 
 internal interface IJupyterProtocolSession : IAsyncDisposable

@@ -3,43 +3,42 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading.Channels;
-using Ghostflyby.Jupyter;
 using Ghostflyby.Jupyter.Kernel.Transport;
 
 namespace Ghostflyby.Jupyter.Kernel;
 
 public sealed class JupyterKernelHost : IJupyterKernel
 {
-    private readonly IJupyterKernelApplication application;
-    private readonly TaskCompletionSource completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private readonly Task controlLoop;
-    private readonly Channel<JupyterWireMessage> controlRequests = Channel.CreateBounded<JupyterWireMessage>(32);
-    private readonly Lock executionGate = new();
-    private readonly CancellationTokenSource lifetime = new();
-    private JupyterExecutionContext? currentExecutionContext;
-    private Exception? fatalFailure;
-    private readonly ConcurrentDictionary<JupyterMessageId, TaskCompletionSource<string>> pendingInputs = new();
-    private readonly Task routerLoop;
-    private readonly JupyterSessionIdentity session;
-    private readonly Task shellLoop;
-    private readonly Channel<JupyterWireMessage> shellRequests = Channel.CreateBounded<JupyterWireMessage>(128);
-    private readonly IJupyterKernelTransport transport;
-    private CancellationTokenSource? currentExecution;
-    private int disposeState;
-    private int executionCount;
-    private int iopubInitialized;
+    private readonly IJupyterKernelApplication _application;
+    private readonly TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly Task _controlLoop;
+    private readonly Channel<JupyterWireMessage> _controlRequests = Channel.CreateBounded<JupyterWireMessage>(32);
+    private readonly Lock _executionGate = new();
+    private readonly CancellationTokenSource _lifetime = new();
+    private JupyterExecutionContext? _currentExecutionContext;
+    private Exception? _fatalFailure;
+    private readonly ConcurrentDictionary<JupyterMessageId, TaskCompletionSource<string>> _pendingInputs = new();
+    private readonly Task _routerLoop;
+    private readonly JupyterSessionIdentity _session;
+    private readonly Task _shellLoop;
+    private readonly Channel<JupyterWireMessage> _shellRequests = Channel.CreateBounded<JupyterWireMessage>(128);
+    private readonly IJupyterKernelTransport _transport;
+    private CancellationTokenSource? _currentExecution;
+    private int _disposeState;
+    private int _executionCount;
+    private int _iopubInitialized;
 
     private JupyterKernelHost(
         IJupyterKernelApplication application,
         IJupyterKernelTransport transport,
         JupyterSessionIdentity session)
     {
-        this.application = application;
-        this.transport = transport;
-        this.session = session;
-        routerLoop = RouteIncomingAsync();
-        shellLoop = ProcessShellAsync();
-        controlLoop = ProcessControlAsync();
+        this._application = application;
+        this._transport = transport;
+        this._session = session;
+        _routerLoop = RouteIncomingAsync();
+        _shellLoop = ProcessShellAsync();
+        _controlLoop = ProcessControlAsync();
         _ = CompleteHostAsync();
     }
 
@@ -51,20 +50,20 @@ public sealed class JupyterKernelHost : IJupyterKernel
     ///     fault raised inside the host faults this task with the originating exception so
     ///     awaiting callers observe the real cause instead of success.
     /// </summary>
-    public Task Completion => completion.Task;
+    public Task Completion => _completion.Task;
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        await lifetime.CancelAsync().ConfigureAwait(false);
+        await _lifetime.CancelAsync().ConfigureAwait(false);
         await Completion.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref disposeState, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposeState, 1) != 0) return;
 
         await StopAsync().ConfigureAwait(false);
-        lifetime.Dispose();
+        _lifetime.Dispose();
     }
 
     public static async Task<JupyterKernelHost> StartAsync(
@@ -108,21 +107,21 @@ public sealed class JupyterKernelHost : IJupyterKernel
                         message.TargetName ?? string.Empty,
                         message.Data),
                     JupyterJsonContext.Default.JupyterCommOpenContent,
-                    session,
+                    _session,
                     metadata: message.Metadata),
                 JupyterCommKind.Close => JupyterMessage.Create(
                     "comm_close",
                     new JupyterCommCloseContent(message.CommId, message.Data),
                     JupyterJsonContext.Default.JupyterCommCloseContent,
-                    session),
+                    _session),
                 _ => JupyterMessage.Create(
                     "comm_msg",
                     new JupyterCommMsgContent(message.CommId, message.Data),
                     JupyterJsonContext.Default.JupyterCommMsgContent,
-                    session)
+                    _session)
             },
             message.Buffers);
-        await transport.SendAsync(JupyterKernelChannel.Iopub, outgoing, cancellationToken).ConfigureAwait(false);
+        await _transport.SendAsync(JupyterKernelChannel.Iopub, outgoing, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task RouteIncomingAsync()
@@ -130,43 +129,43 @@ public sealed class JupyterKernelHost : IJupyterKernel
         Exception? failure = null;
         try
         {
-            await foreach (var incoming in transport.IncomingEvents.WithCancellation(lifetime.Token)
+            await foreach (var incoming in _transport.IncomingEvents.WithCancellation(_lifetime.Token)
                                .ConfigureAwait(false))
                 switch (incoming)
                 {
                     case JupyterKernelMessageReceived { Channel: JupyterKernelChannel.Shell } shell:
-                        await shellRequests.Writer.WriteAsync(shell.WireMessage, lifetime.Token).ConfigureAwait(false);
+                        await _shellRequests.Writer.WriteAsync(shell.WireMessage, _lifetime.Token).ConfigureAwait(false);
                         break;
                     case JupyterKernelMessageReceived { Channel: JupyterKernelChannel.Control } control:
-                        await controlRequests.Writer.WriteAsync(control.WireMessage, lifetime.Token)
+                        await _controlRequests.Writer.WriteAsync(control.WireMessage, _lifetime.Token)
                             .ConfigureAwait(false);
                         break;
                     case JupyterKernelMessageReceived { Channel: JupyterKernelChannel.Stdin } stdin:
                         RouteInputReply(stdin.WireMessage.Message);
                         break;
                     case JupyterIopubSubscriptionReceived subscription:
-                        if (Interlocked.Exchange(ref iopubInitialized, 1) == 0)
+                        if (Interlocked.Exchange(ref _iopubInitialized, 1) == 0)
                         {
-                            await SendIopubWelcomeAsync(subscription.Topic, lifetime.Token).ConfigureAwait(false);
-                            await PublishStatusAsync("starting", null, lifetime.Token).ConfigureAwait(false);
+                            await SendIopubWelcomeAsync(subscription.Topic, _lifetime.Token).ConfigureAwait(false);
+                            await PublishStatusAsync("starting", null, _lifetime.Token).ConfigureAwait(false);
                         }
 
                         break;
                 }
         }
-        catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
         }
         catch (Exception exception)
         {
             failure = exception;
             RecordFatal(exception);
-            await lifetime.CancelAsync().ConfigureAwait(false);
+            await _lifetime.CancelAsync().ConfigureAwait(false);
         }
         finally
         {
-            shellRequests.Writer.TryComplete(failure);
-            controlRequests.Writer.TryComplete(failure);
+            _shellRequests.Writer.TryComplete(failure);
+            _controlRequests.Writer.TryComplete(failure);
         }
     }
 
@@ -174,11 +173,11 @@ public sealed class JupyterKernelHost : IJupyterKernel
     {
         try
         {
-            await foreach (var request in shellRequests.Reader.ReadAllAsync(lifetime.Token).ConfigureAwait(false))
+            await foreach (var request in _shellRequests.Reader.ReadAllAsync(_lifetime.Token).ConfigureAwait(false))
                 await ProcessWithStatusAsync(request, JupyterKernelChannel.Shell, HandleShellRequestAsync)
                     .ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
         }
         catch (Exception exception)
@@ -186,7 +185,7 @@ public sealed class JupyterKernelHost : IJupyterKernel
             // A fault escaping one request must never leave the kernel silently dead: record
             // the cause and cancel the lifetime so every owned loop observes the shutdown.
             RecordFatal(exception);
-            await lifetime.CancelAsync().ConfigureAwait(false);
+            await _lifetime.CancelAsync().ConfigureAwait(false);
         }
     }
 
@@ -194,23 +193,23 @@ public sealed class JupyterKernelHost : IJupyterKernel
     {
         try
         {
-            await foreach (var request in controlRequests.Reader.ReadAllAsync(lifetime.Token).ConfigureAwait(false))
+            await foreach (var request in _controlRequests.Reader.ReadAllAsync(_lifetime.Token).ConfigureAwait(false))
                 await ProcessWithStatusAsync(request, JupyterKernelChannel.Control, HandleControlRequestAsync)
                     .ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
         }
         catch (Exception exception)
         {
             RecordFatal(exception);
-            await lifetime.CancelAsync().ConfigureAwait(false);
+            await _lifetime.CancelAsync().ConfigureAwait(false);
         }
     }
 
     private void RecordFatal(Exception exception)
     {
-        Interlocked.CompareExchange(ref fatalFailure, exception, null);
+        Interlocked.CompareExchange(ref _fatalFailure, exception, null);
     }
 
     private async Task ProcessWithStatusAsync(
@@ -218,7 +217,7 @@ public sealed class JupyterKernelHost : IJupyterKernel
         JupyterKernelChannel channel,
         Func<JupyterWireMessage, JupyterKernelChannel, Task<bool>> handler)
     {
-        await PublishStatusAsync("busy", request.Message.Header, lifetime.Token).ConfigureAwait(false);
+        await PublishStatusAsync("busy", request.Message.Header, _lifetime.Token).ConfigureAwait(false);
         bool stop;
         try
         {
@@ -229,7 +228,7 @@ public sealed class JupyterKernelHost : IJupyterKernel
             await PublishStatusAsync("idle", request.Message.Header, CancellationToken.None).ConfigureAwait(false);
         }
 
-        if (stop) await lifetime.CancelAsync().ConfigureAwait(false);
+        if (stop) await _lifetime.CancelAsync().ConfigureAwait(false);
     }
 
     private async Task<bool> HandleShellRequestAsync(JupyterWireMessage request, JupyterKernelChannel channel)
@@ -241,9 +240,9 @@ public sealed class JupyterKernelHost : IJupyterKernel
                     channel,
                     request,
                     "kernel_info_reply",
-                    application.KernelInfo,
+                    _application.KernelInfo,
                     JupyterJsonContext.Default.JupyterKernelInfo,
-                    lifetime.Token).ConfigureAwait(false);
+                    _lifetime.Token).ConfigureAwait(false);
                 return false;
             case "execute_request":
                 await ExecuteAsync(request).ConfigureAwait(false);
@@ -282,9 +281,9 @@ public sealed class JupyterKernelHost : IJupyterKernel
                     channel,
                     request,
                     "kernel_info_reply",
-                    application.KernelInfo,
+                    _application.KernelInfo,
                     JupyterJsonContext.Default.JupyterKernelInfo,
-                    lifetime.Token).ConfigureAwait(false);
+                    _lifetime.Token).ConfigureAwait(false);
                 return false;
             case "interrupt_request":
                 CancelCurrentExecution();
@@ -294,7 +293,7 @@ public sealed class JupyterKernelHost : IJupyterKernel
                     "interrupt_reply",
                     new JupyterInterruptReply("ok"),
                     JupyterJsonContext.Default.JupyterInterruptReply,
-                    lifetime.Token).ConfigureAwait(false);
+                    _lifetime.Token).ConfigureAwait(false);
                 return false;
             case "shutdown_request":
                 return await HandleShutdownAsync(request, channel).ConfigureAwait(false);
@@ -319,7 +318,7 @@ public sealed class JupyterKernelHost : IJupyterKernel
         }
 
         var historyEnabled = !request.Silent && request.StoreHistory;
-        var count = historyEnabled ? Interlocked.Increment(ref executionCount) : Volatile.Read(ref executionCount);
+        var count = historyEnabled ? Interlocked.Increment(ref _executionCount) : Volatile.Read(ref _executionCount);
 
         if (!request.Silent)
             await PublishAsync(
@@ -327,19 +326,19 @@ public sealed class JupyterKernelHost : IJupyterKernel
                 new JupyterExecuteInput(request.Code, count),
                 JupyterJsonContext.Default.JupyterExecuteInput,
                 wireRequest.Message.Header,
-                lifetime.Token).ConfigureAwait(false);
+                _lifetime.Token).ConfigureAwait(false);
 
-        using var execution = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+        using var execution = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         var context = CreateExecutionContext(wireRequest, request, count);
-        lock (executionGate)
+        lock (_executionGate)
         {
-            currentExecution = execution;
-            currentExecutionContext = context;
+            _currentExecution = execution;
+            _currentExecutionContext = context;
         }
 
         try
         {
-            var result = await application.ExecuteAsync(context, request, execution.Token).ConfigureAwait(false);
+            var result = await _application.ExecuteAsync(context, request, execution.Token).ConfigureAwait(false);
             await SendReplyAsync(
                 JupyterKernelChannel.Shell,
                 wireRequest,
@@ -380,10 +379,10 @@ public sealed class JupyterKernelHost : IJupyterKernel
         }
         finally
         {
-            lock (executionGate)
+            lock (_executionGate)
             {
-                if (ReferenceEquals(currentExecution, execution)) currentExecution = null;
-                if (ReferenceEquals(currentExecutionContext, context)) currentExecutionContext = null;
+                if (ReferenceEquals(_currentExecution, execution)) _currentExecution = null;
+                if (ReferenceEquals(_currentExecutionContext, context)) _currentExecutionContext = null;
             }
         }
     }
@@ -397,7 +396,7 @@ public sealed class JupyterKernelHost : IJupyterKernel
             "execute_reply",
             new JupyterExecuteReply(
                 "error",
-                Volatile.Read(ref executionCount),
+                Volatile.Read(ref _executionCount),
                 ErrorName: error.Name,
                 ErrorValue: error.Value,
                 Traceback: error.Traceback),
@@ -411,12 +410,12 @@ public sealed class JupyterKernelHost : IJupyterKernel
         {
             var request = wireRequest.Message.GetContent(JupyterJsonContext.Default.JupyterCompleteRequest);
             ValidateCursorPosition(request.Code, request.CursorPosition);
-            if (application is not IJupyterCompletionProvider provider)
+            if (_application is not IJupyterCompletionProvider provider)
                 throw new JupyterKernelExecutionException(
                     "NotSupported",
                     "The Jupyter kernel does not provide code completion.");
 
-            var result = await provider.CompleteAsync(request, lifetime.Token).ConfigureAwait(false);
+            var result = await provider.CompleteAsync(request, _lifetime.Token).ConfigureAwait(false);
             ValidateCursorRange(request.Code, result.CursorStart, result.CursorEnd);
             await SendReplyAsync(
                 channel,
@@ -462,12 +461,12 @@ public sealed class JupyterKernelHost : IJupyterKernel
                 throw new ArgumentOutOfRangeException(nameof(request.DetailLevel),
                     "Jupyter inspect detail level must be 0 or 1.");
 
-            if (application is not IJupyterInspectionProvider provider)
+            if (_application is not IJupyterInspectionProvider provider)
                 throw new JupyterKernelExecutionException(
                     "NotSupported",
                     "The Jupyter kernel does not provide code inspection.");
 
-            var result = await provider.InspectAsync(request, lifetime.Token).ConfigureAwait(false);
+            var result = await provider.InspectAsync(request, _lifetime.Token).ConfigureAwait(false);
             await SendReplyAsync(
                 channel,
                 wireRequest,
@@ -507,10 +506,10 @@ public sealed class JupyterKernelHost : IJupyterKernel
         try
         {
             var request = wireRequest.Message.GetContent(JupyterJsonContext.Default.JupyterIsCompleteRequest);
-            if (application is IJupyterCodeCompletenessProvider provider)
+            if (_application is IJupyterCodeCompletenessProvider provider)
                 try
                 {
-                    result = await provider.IsCompleteAsync(request, lifetime.Token).ConfigureAwait(false);
+                    result = await provider.IsCompleteAsync(request, _lifetime.Token).ConfigureAwait(false);
                 }
                 catch
                 {
@@ -534,7 +533,7 @@ public sealed class JupyterKernelHost : IJupyterKernel
 
     private async Task HandleCommAsync(JupyterCommKind kind, JupyterWireMessage wireRequest)
     {
-        if (application is not IJupyterCommSink sink)
+        if (_application is not IJupyterCommSink sink)
             return;
 
         JupyterCommMessage message;
@@ -550,21 +549,21 @@ public sealed class JupyterKernelHost : IJupyterKernel
         }
 
         JupyterExecutionContext? context;
-        lock (executionGate)
+        lock (_executionGate)
         {
-            context = currentExecutionContext;
+            context = _currentExecutionContext;
         }
 
         switch (kind)
         {
             case JupyterCommKind.Open:
-                await sink.OnCommOpenAsync(message, context, lifetime.Token).ConfigureAwait(false);
+                await sink.OnCommOpenAsync(message, context, _lifetime.Token).ConfigureAwait(false);
                 break;
             case JupyterCommKind.Message:
-                await sink.OnCommMsgAsync(message, context, lifetime.Token).ConfigureAwait(false);
+                await sink.OnCommMsgAsync(message, context, _lifetime.Token).ConfigureAwait(false);
                 break;
             case JupyterCommKind.Close:
-                await sink.OnCommCloseAsync(message, context, lifetime.Token).ConfigureAwait(false);
+                await sink.OnCommCloseAsync(message, context, _lifetime.Token).ConfigureAwait(false);
                 break;
         }
     }
@@ -710,19 +709,19 @@ public sealed class JupyterKernelHost : IJupyterKernel
             "input_request",
             new JupyterInputRequestContent(prompt, password),
             JupyterJsonContext.Default.JupyterInputRequestContent,
-            session,
+            _session,
             executeRequest.Message.Header);
         var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (!pendingInputs.TryAdd(message.Header.MessageId, completion))
+        if (!_pendingInputs.TryAdd(message.Header.MessageId, completion))
             throw new InvalidOperationException($"Input request '{message.Header.MessageId}' was already registered.");
 
         await using var registration = cancellationToken.Register(() =>
         {
-            if (pendingInputs.TryRemove(message.Header.MessageId, out var pending))
+            if (_pendingInputs.TryRemove(message.Header.MessageId, out var pending))
                 pending.TrySetCanceled(cancellationToken);
         });
 
-        await transport.SendAsync(
+        await _transport.SendAsync(
             JupyterKernelChannel.Stdin,
             new JupyterWireMessage(executeRequest.Identities, message, []),
             cancellationToken).ConfigureAwait(false);
@@ -733,7 +732,7 @@ public sealed class JupyterKernelHost : IJupyterKernel
     {
         if (message.MessageType != "input_reply" || message.ParentHeader is null) return;
 
-        if (!pendingInputs.TryRemove(message.ParentHeader.MessageId, out var pending)) return;
+        if (!_pendingInputs.TryRemove(message.ParentHeader.MessageId, out var pending)) return;
 
         string value;
         try
@@ -787,9 +786,9 @@ public sealed class JupyterKernelHost : IJupyterKernel
 
     private void CancelCurrentExecution()
     {
-        lock (executionGate)
+        lock (_executionGate)
         {
-            currentExecution?.Cancel();
+            _currentExecution?.Cancel();
         }
     }
 
@@ -813,8 +812,8 @@ public sealed class JupyterKernelHost : IJupyterKernel
         JupyterMessageHeader? parent,
         CancellationToken cancellationToken)
     {
-        var message = JupyterMessage.Create(messageType, content, contentType, session, parent);
-        await transport.SendAsync(
+        var message = JupyterMessage.Create(messageType, content, contentType, _session, parent);
+        await _transport.SendAsync(
             JupyterKernelChannel.Iopub,
             new JupyterWireMessage([Encoding.UTF8.GetBytes(messageType)], message, []),
             cancellationToken).ConfigureAwait(false);
@@ -828,8 +827,8 @@ public sealed class JupyterKernelHost : IJupyterKernel
         JsonTypeInfo<TContent> contentType,
         CancellationToken cancellationToken)
     {
-        var message = JupyterMessage.Create(messageType, content, contentType, session, request.Message.Header);
-        await transport.SendAsync(
+        var message = JupyterMessage.Create(messageType, content, contentType, _session, request.Message.Header);
+        await _transport.SendAsync(
             channel,
             new JupyterWireMessage(request.Identities, message, []),
             cancellationToken).ConfigureAwait(false);
@@ -841,8 +840,8 @@ public sealed class JupyterKernelHost : IJupyterKernel
             "iopub_welcome",
             new JupyterIopubWelcome(Convert.ToHexString(topic).ToLowerInvariant()),
             JupyterJsonContext.Default.JupyterIopubWelcome,
-            session);
-        await transport.SendAsync(
+            _session);
+        await _transport.SendAsync(
             JupyterKernelChannel.Iopub,
             new JupyterWireMessage([topic], message, []),
             cancellationToken).ConfigureAwait(false);
@@ -853,9 +852,9 @@ public sealed class JupyterKernelHost : IJupyterKernel
         Exception? failure = null;
         try
         {
-            await Task.WhenAll(routerLoop, shellLoop, controlLoop).ConfigureAwait(false);
+            await Task.WhenAll(_routerLoop, _shellLoop, _controlLoop).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
         }
         catch (Exception exception)
@@ -865,17 +864,17 @@ public sealed class JupyterKernelHost : IJupyterKernel
         finally
         {
             CancelCurrentExecution();
-            foreach (var pending in pendingInputs.Values)
+            foreach (var pending in _pendingInputs.Values)
                 pending.TrySetException(new ObjectDisposedException(nameof(JupyterKernelHost)));
 
-            pendingInputs.Clear();
+            _pendingInputs.Clear();
         }
 
         // The application is notified after every loop has stopped (so it can no longer be asked to
         // execute) and before the transport is torn down. Its failure is recorded like a disposal
         // failure rather than thrown, so a faulting shutdown hook cannot mask the host's cause.
         Exception? lifecycleFailure = null;
-        if (application is IJupyterKernelLifecycle lifecycle)
+        if (_application is IJupyterKernelLifecycle lifecycle)
         {
             try
             {
@@ -892,7 +891,7 @@ public sealed class JupyterKernelHost : IJupyterKernel
         Exception? disposeFailure = null;
         try
         {
-            await transport.DisposeAsync().ConfigureAwait(false);
+            await _transport.DisposeAsync().ConfigureAwait(false);
         }
         catch (Exception exception)
         {
@@ -902,9 +901,9 @@ public sealed class JupyterKernelHost : IJupyterKernel
         // An internally-initiated fatal fault cancels the lifetime first, so WhenAll usually
         // observes only OperationCanceledException here. Surface the recorded cause on the
         // completion source instead of reporting success for a host that died on its own.
-        failure = failure ?? Volatile.Read(ref fatalFailure) ?? lifecycleFailure ?? disposeFailure;
-        if (failure is { } fatal) completion.TrySetException(fatal);
-        else completion.TrySetResult();
+        failure = failure ?? Volatile.Read(ref _fatalFailure) ?? lifecycleFailure ?? disposeFailure;
+        if (failure is { } fatal) _completion.TrySetException(fatal);
+        else _completion.TrySetResult();
     }
 
     private static JupyterError ToJupyterError(Exception exception)

@@ -1,34 +1,33 @@
 using System.Threading.Channels;
-using Ghostflyby.Jupyter;
 using Ghostflyby.Jupyter.Client.Transport;
 
 namespace Ghostflyby.Jupyter.Tests;
 
 internal sealed class FakeJupyterTransport : IJupyterTransport
 {
-    private readonly Channel<JupyterTransportMessage> incomingMessages =
+    private readonly Channel<JupyterTransportMessage> _incomingMessages =
         Channel.CreateUnbounded<JupyterTransportMessage>();
 
-    private readonly Channel<JupyterTransportMessage> sentMessages =
+    private readonly Channel<JupyterTransportMessage> _sentMessages =
         Channel.CreateUnbounded<JupyterTransportMessage>();
 
-    private readonly List<JupyterTransportMessage> sentMessagesHistory = [];
-    private readonly Lock sentMessagesGate = new();
+    private readonly List<JupyterTransportMessage> _sentMessagesHistory = [];
+    private readonly Lock _sentMessagesGate = new();
 
     public IReadOnlyList<JupyterTransportMessage> SentMessages
     {
         get
         {
-            lock (sentMessagesGate)
+            lock (_sentMessagesGate)
             {
-                return sentMessagesHistory.ToArray();
+                return _sentMessagesHistory.ToArray();
             }
         }
     }
 
-    public IAsyncEnumerable<JupyterTransportMessage> SentMessageStream => sentMessages.Reader.ReadAllAsync();
+    public IAsyncEnumerable<JupyterTransportMessage> SentMessageStream => _sentMessages.Reader.ReadAllAsync();
 
-    public IAsyncEnumerable<JupyterTransportMessage> IncomingMessages => incomingMessages.Reader.ReadAllAsync();
+    public IAsyncEnumerable<JupyterTransportMessage> IncomingMessages => _incomingMessages.Reader.ReadAllAsync();
 
     public ValueTask SendAsync(
         JupyterTransportChannel channel,
@@ -37,10 +36,10 @@ internal sealed class FakeJupyterTransport : IJupyterTransport
     {
         cancellationToken.ThrowIfCancellationRequested();
         var transportMessage = new JupyterTransportMessage(channel, JupyterWireMessage.Create(message));
-        sentMessages.Writer.TryWrite(transportMessage);
-        lock (sentMessagesGate)
+        _sentMessages.Writer.TryWrite(transportMessage);
+        lock (_sentMessagesGate)
         {
-            sentMessagesHistory.Add(transportMessage);
+            _sentMessagesHistory.Add(transportMessage);
         }
 
         return ValueTask.CompletedTask;
@@ -53,7 +52,7 @@ internal sealed class FakeJupyterTransport : IJupyterTransport
 
     public ValueTask DisposeAsync()
     {
-        incomingMessages.Writer.TryComplete();
+        _incomingMessages.Writer.TryComplete();
         return ValueTask.CompletedTask;
     }
 
@@ -62,7 +61,7 @@ internal sealed class FakeJupyterTransport : IJupyterTransport
         JupyterMessage message,
         IReadOnlyList<byte[]>? identities = null)
     {
-        incomingMessages.Writer.TryWrite(new JupyterTransportMessage(
+        _incomingMessages.Writer.TryWrite(new JupyterTransportMessage(
             channel,
             new JupyterWireMessage(identities ?? [], message, [])));
     }

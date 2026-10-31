@@ -2,7 +2,6 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Net.Sockets;
 using System.Threading.Channels;
-using Ghostflyby.Jupyter;
 using ZmqSharp;
 using ZmqSharp.Transports;
 
@@ -14,38 +13,38 @@ namespace Ghostflyby.Jupyter.Client.Transport;
 internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTransportConnectionReadiness
 {
     private static readonly TimeSpan ConnectRetryDelay = TimeSpan.FromMilliseconds(25);
-    private readonly JupyterConnectionInfo connectionInfo;
-    private readonly Channel<PingCommand> heartbeatCommands;
-    private readonly Channel<JupyterTransportMessage> incomingMessages;
-    private readonly CancellationTokenSource lifetime = new();
-    private readonly JupyterTransportOptions options;
-    private readonly Channel<ClientCommand> outgoingCommands;
-    private readonly IJupyterMessageSerializer serializer;
-    private readonly TaskCompletionSource stdinConnected =
+    private readonly JupyterConnectionInfo _connectionInfo;
+    private readonly Channel<PingCommand> _heartbeatCommands;
+    private readonly Channel<JupyterTransportMessage> _incomingMessages;
+    private readonly CancellationTokenSource _lifetime = new();
+    private readonly JupyterTransportOptions _options;
+    private readonly Channel<ClientCommand> _outgoingCommands;
+    private readonly IJupyterMessageSerializer _serializer;
+    private readonly TaskCompletionSource _stdinConnected =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private int disposeState;
-    private Task ownerTask = Task.CompletedTask;
-    private Exception? terminalError;
+    private int _disposeState;
+    private Task _ownerTask = Task.CompletedTask;
+    private Exception? _terminalError;
 
     private ZmqSharpJupyterTransport(JupyterConnectionInfo connectionInfo, JupyterTransportOptions options)
     {
-        this.connectionInfo = connectionInfo;
-        this.options = options;
-        serializer = new JupyterMessageSerializer(connectionInfo.Key, connectionInfo.SignatureScheme);
-        incomingMessages = Channel.CreateBounded<JupyterTransportMessage>(
+        this._connectionInfo = connectionInfo;
+        this._options = options;
+        _serializer = new JupyterMessageSerializer(connectionInfo.Key, connectionInfo.SignatureScheme);
+        _incomingMessages = Channel.CreateBounded<JupyterTransportMessage>(
             new BoundedChannelOptions(options.IncomingCapacity)
             {
                 SingleReader = true,
                 SingleWriter = false,
                 FullMode = BoundedChannelFullMode.Wait
             });
-        outgoingCommands = Channel.CreateBounded<ClientCommand>(new BoundedChannelOptions(options.OutgoingCapacity)
+        _outgoingCommands = Channel.CreateBounded<ClientCommand>(new BoundedChannelOptions(options.OutgoingCapacity)
         {
             SingleReader = true,
             SingleWriter = false,
             FullMode = BoundedChannelFullMode.Wait
         });
-        heartbeatCommands = Channel.CreateBounded<PingCommand>(new BoundedChannelOptions(options.OutgoingCapacity)
+        _heartbeatCommands = Channel.CreateBounded<PingCommand>(new BoundedChannelOptions(options.OutgoingCapacity)
         {
             SingleReader = true,
             SingleWriter = true,
@@ -54,7 +53,7 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
     }
 
     /// <inheritdoc />
-    public IAsyncEnumerable<JupyterTransportMessage> IncomingMessages => incomingMessages.Reader.ReadAllAsync();
+    public IAsyncEnumerable<JupyterTransportMessage> IncomingMessages => _incomingMessages.Reader.ReadAllAsync();
 
     /// <inheritdoc />
     public async ValueTask SendAsync(
@@ -80,17 +79,17 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
 
     Task IJupyterTransportConnectionReadiness.WaitForStdinConnectedAsync(CancellationToken cancellationToken)
     {
-        return stdinConnected.Task.WaitAsync(cancellationToken);
+        return _stdinConnected.Task.WaitAsync(cancellationToken);
     }
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        var ownsDisposal = Interlocked.Exchange(ref disposeState, 1) == 0;
-        if (ownsDisposal) await lifetime.CancelAsync().ConfigureAwait(false);
+        var ownsDisposal = Interlocked.Exchange(ref _disposeState, 1) == 0;
+        if (ownsDisposal) await _lifetime.CancelAsync().ConfigureAwait(false);
 
-        await ownerTask.ConfigureAwait(false);
-        if (ownsDisposal) lifetime.Dispose();
+        await _ownerTask.ConfigureAwait(false);
+        if (ownsDisposal) _lifetime.Dispose();
     }
 
     /// <summary>
@@ -111,7 +110,7 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
 
     private void Start()
     {
-        ownerTask = RunOwnerAsync();
+        _ownerTask = RunOwnerAsync();
     }
 
     private async Task RunOwnerAsync()
@@ -119,13 +118,13 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
         var sockets = new ClientSocketOwner(this);
         try
         {
-            await sockets.ConnectAsync(lifetime.Token).ConfigureAwait(false);
+            await sockets.ConnectAsync(_lifetime.Token).ConfigureAwait(false);
             await Task.WhenAll(
-                    ObservePumpAsync(() => ProcessCommandsAsync(sockets, lifetime.Token)),
-                    ObservePumpAsync(() => ProcessHeartbeatsAsync(sockets.Heartbeat, lifetime.Token)))
+                    ObservePumpAsync(() => ProcessCommandsAsync(sockets, _lifetime.Token)),
+                    ObservePumpAsync(() => ProcessHeartbeatsAsync(sockets.Heartbeat, _lifetime.Token)))
                 .ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
         }
         catch (Exception exception)
@@ -134,7 +133,7 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
         }
         finally
         {
-            await lifetime.CancelAsync().ConfigureAwait(false);
+            await _lifetime.CancelAsync().ConfigureAwait(false);
 
             try
             {
@@ -142,18 +141,18 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
             }
             catch (Exception exception)
             {
-                Interlocked.CompareExchange(ref terminalError, exception, null);
+                Interlocked.CompareExchange(ref _terminalError, exception, null);
             }
 
-            var completionError = Volatile.Read(ref terminalError);
+            var completionError = Volatile.Read(ref _terminalError);
             var pendingError = completionError ?? new ObjectDisposedException(nameof(ZmqSharpJupyterTransport));
-            stdinConnected.TrySetException(pendingError);
-            outgoingCommands.Writer.TryComplete(completionError);
-            heartbeatCommands.Writer.TryComplete(completionError);
-            while (outgoingCommands.Reader.TryRead(out var command)) command.Fail(pendingError);
-            while (heartbeatCommands.Reader.TryRead(out var ping)) ping.Fail(pendingError);
+            _stdinConnected.TrySetException(pendingError);
+            _outgoingCommands.Writer.TryComplete(completionError);
+            _heartbeatCommands.Writer.TryComplete(completionError);
+            while (_outgoingCommands.Reader.TryRead(out var command)) command.Fail(pendingError);
+            while (_heartbeatCommands.Reader.TryRead(out var ping)) ping.Fail(pendingError);
 
-            incomingMessages.Writer.TryComplete(completionError);
+            _incomingMessages.Writer.TryComplete(completionError);
         }
     }
 
@@ -163,7 +162,7 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
         {
             await pump().ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
         }
         catch (Exception exception)
@@ -175,7 +174,7 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
 
     private async Task ProcessCommandsAsync(ClientSocketOwner sockets, CancellationToken cancellationToken)
     {
-        await foreach (var command in outgoingCommands.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        await foreach (var command in _outgoingCommands.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             switch (command)
             {
                 case SendCommand send:
@@ -192,7 +191,7 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
 
                     break;
                 case PingCommand ping:
-                    if (heartbeatCommands.Writer.TryWrite(ping)) break;
+                    if (_heartbeatCommands.Writer.TryWrite(ping)) break;
 
                     var backpressure = CreateOutgoingBackpressureException();
                     ping.Fail(backpressure);
@@ -202,7 +201,7 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
 
     private async Task ProcessHeartbeatsAsync(ZReqSocket heartbeat, CancellationToken cancellationToken)
     {
-        await foreach (var command in heartbeatCommands.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        await foreach (var command in _heartbeatCommands.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
         {
             var payload = Guid.NewGuid().ToByteArray();
             var startTimestamp = Stopwatch.GetTimestamp();
@@ -229,7 +228,7 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
         SendCommand command,
         CancellationToken cancellationToken)
     {
-        var frames = serializer.Serialize(JupyterWireMessage.Create(command.Message)).ToArray();
+        var frames = _serializer.Serialize(JupyterWireMessage.Create(command.Message)).ToArray();
         var message = ZMessage.FromOwned(frames);
         switch (command.Channel)
         {
@@ -250,13 +249,13 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
 
     private ValueTask EnqueueAsync(ClientCommand command, CancellationToken cancellationToken)
     {
-        ObjectDisposedException.ThrowIf(Volatile.Read(ref disposeState) != 0, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeState) != 0, this);
         cancellationToken.ThrowIfCancellationRequested();
         ThrowIfTerminated();
 
-        if (outgoingCommands.Writer.TryWrite(command)) return ValueTask.CompletedTask;
+        if (_outgoingCommands.Writer.TryWrite(command)) return ValueTask.CompletedTask;
 
-        ObjectDisposedException.ThrowIf(Volatile.Read(ref disposeState) != 0, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeState) != 0, this);
         ThrowIfTerminated();
         var exception = CreateOutgoingBackpressureException();
         command.Fail(exception);
@@ -267,7 +266,7 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
     private JupyterBackpressureException CreateOutgoingBackpressureException()
     {
         return new JupyterBackpressureException(
-            $"The Jupyter client outgoing queue exceeded its capacity of {options.OutgoingCapacity}.");
+            $"The Jupyter client outgoing queue exceeded its capacity of {_options.OutgoingCapacity}.");
     }
 
     private void Receive(JupyterTransportChannel channel, ZMessage message)
@@ -275,11 +274,11 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
         try
         {
             var frames = message.Select(static frame => frame.ToSequence().ToArray()).ToArray();
-            var wireMessage = serializer.Deserialize(frames);
-            if (incomingMessages.Writer.TryWrite(new JupyterTransportMessage(channel, wireMessage))) return;
+            var wireMessage = _serializer.Deserialize(frames);
+            if (_incomingMessages.Writer.TryWrite(new JupyterTransportMessage(channel, wireMessage))) return;
 
             Terminate(new JupyterBackpressureException(
-                $"The Jupyter client incoming queue exceeded its capacity of {options.IncomingCapacity}."));
+                $"The Jupyter client incoming queue exceeded its capacity of {_options.IncomingCapacity}."));
         }
         catch (Exception exception)
         {
@@ -294,7 +293,7 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
 
     private void OnPeerEnded(string channel, IZConnection peer, Exception? failure)
     {
-        if (lifetime.IsCancellationRequested) return;
+        if (_lifetime.IsCancellationRequested) return;
 
         // A peer closing the connection cleanly (failure == null) is a normal
         // shutdown signal, not an error: the kernel closes its sockets after
@@ -310,15 +309,15 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
 
     private void Terminate(Exception exception)
     {
-        if (Interlocked.CompareExchange(ref terminalError, exception, null) is not null) return;
+        if (Interlocked.CompareExchange(ref _terminalError, exception, null) is not null) return;
 
-        incomingMessages.Writer.TryComplete(exception);
-        lifetime.Cancel();
+        _incomingMessages.Writer.TryComplete(exception);
+        _lifetime.Cancel();
     }
 
     private void ThrowIfTerminated()
     {
-        if (Volatile.Read(ref terminalError) is { } exception)
+        if (Volatile.Read(ref _terminalError) is { } exception)
             throw new JupyterProtocolException("The Jupyter client transport has terminated.", exception);
     }
 
@@ -379,11 +378,11 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
 
     private sealed class ClientSocketOwner : IAsyncDisposable
     {
-        private readonly ZmqSharpJupyterTransport owner;
+        private readonly ZmqSharpJupyterTransport _owner;
 
         public ClientSocketOwner(ZmqSharpJupyterTransport owner)
         {
-            this.owner = owner;
+            this._owner = owner;
             var clientIdentity = Guid.NewGuid().ToByteArray();
             Shell = CreateDealer(clientIdentity, new IncomingSink(owner, JupyterTransportChannel.Shell));
             Control = CreateDealer(Guid.NewGuid().ToByteArray(),
@@ -416,12 +415,12 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
         public async Task ConnectAsync(CancellationToken cancellationToken)
         {
             await Task.WhenAll(
-                    ObserveConnectAsync(Shell, owner.connectionInfo.Endpoint(JupyterChannel.Shell), cancellationToken),
-                    ObserveConnectAsync(Control, owner.connectionInfo.Endpoint(JupyterChannel.Control),
+                    ObserveConnectAsync(Shell, _owner._connectionInfo.Endpoint(JupyterChannel.Shell), cancellationToken),
+                    ObserveConnectAsync(Control, _owner._connectionInfo.Endpoint(JupyterChannel.Control),
                         cancellationToken),
                     ConnectStdinAsync(cancellationToken),
-                    ObserveConnectAsync(Iopub, owner.connectionInfo.Endpoint(JupyterChannel.Iopub), cancellationToken),
-                    ObserveConnectAsync(Heartbeat, owner.connectionInfo.Endpoint(JupyterChannel.Heartbeat),
+                    ObserveConnectAsync(Iopub, _owner._connectionInfo.Endpoint(JupyterChannel.Iopub), cancellationToken),
+                    ObserveConnectAsync(Heartbeat, _owner._connectionInfo.Endpoint(JupyterChannel.Heartbeat),
                         cancellationToken))
                 .ConfigureAwait(false);
         }
@@ -447,10 +446,10 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
         {
             await ObserveConnectAsync(
                     Stdin,
-                    owner.connectionInfo.Endpoint(JupyterChannel.Stdin),
+                    _owner._connectionInfo.Endpoint(JupyterChannel.Stdin),
                     cancellationToken)
                 .ConfigureAwait(false);
-            owner.stdinConnected.TrySetResult();
+            _owner._stdinConnected.TrySetResult();
         }
 
         private async Task ObserveConnectAsync(
@@ -468,7 +467,7 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
             }
             catch (Exception exception)
             {
-                owner.Terminate(exception);
+                _owner.Terminate(exception);
                 throw;
             }
         }
@@ -500,27 +499,27 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
 
         private void OnShellEnded(IZConnection peer, Exception? failure)
         {
-            owner.OnPeerEnded("shell", peer, failure);
+            _owner.OnPeerEnded("shell", peer, failure);
         }
 
         private void OnControlEnded(IZConnection peer, Exception? failure)
         {
-            owner.OnPeerEnded("control", peer, failure);
+            _owner.OnPeerEnded("control", peer, failure);
         }
 
         private void OnStdinEnded(IZConnection peer, Exception? failure)
         {
-            owner.OnPeerEnded("stdin", peer, failure);
+            _owner.OnPeerEnded("stdin", peer, failure);
         }
 
         private void OnIopubEnded(IZConnection peer, Exception? failure)
         {
-            owner.OnPeerEnded("IOPub", peer, failure);
+            _owner.OnPeerEnded("IOPub", peer, failure);
         }
 
         private void OnHeartbeatEnded(IZConnection peer, Exception? failure)
         {
-            owner.OnPeerEnded("heartbeat", peer, failure);
+            _owner.OnPeerEnded("heartbeat", peer, failure);
         }
     }
 }

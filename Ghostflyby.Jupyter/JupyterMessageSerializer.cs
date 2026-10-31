@@ -18,14 +18,14 @@ public sealed class JupyterMessageSerializer : IJupyterMessageSerializer
     private const string WireDelimiter = "<IDS|MSG>";
     private const string SupportedSignatureScheme = "hmac-sha256";
     private static readonly byte[] DelimiterBytes = Encoding.UTF8.GetBytes(WireDelimiter);
-    private readonly byte[] key;
+    private readonly byte[] _key;
 
     public JupyterMessageSerializer(string key, string signatureScheme = SupportedSignatureScheme)
     {
         if (!string.Equals(signatureScheme, SupportedSignatureScheme, StringComparison.OrdinalIgnoreCase))
             throw new NotSupportedException($"Jupyter signature scheme '{signatureScheme}' is not supported.");
 
-        this.key = Encoding.UTF8.GetBytes(key);
+        this._key = Encoding.UTF8.GetBytes(key);
     }
 
     public string Delimiter => WireDelimiter;
@@ -88,9 +88,9 @@ public sealed class JupyterMessageSerializer : IJupyterMessageSerializer
 
     private string Sign(params byte[][] frames)
     {
-        if (key.Length == 0) return string.Empty;
+        if (_key.Length == 0) return string.Empty;
 
-        using var hmac = new HMACSHA256(key);
+        using var hmac = new HMACSHA256(_key);
         foreach (var frame in frames) hmac.TransformBlock(frame, 0, frame.Length, null, 0);
 
         hmac.TransformFinalBlock([], 0, 0);

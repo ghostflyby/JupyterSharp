@@ -6,11 +6,11 @@ namespace Ghostflyby.Jupyter.Client.Protocol;
 
 internal sealed class AsyncEventHub<T>(int capacity)
 {
-    private readonly Lock gate = new();
-    private readonly Dictionary<long, Channel<T>> subscribers = [];
-    private bool completed;
-    private Exception? completionError;
-    private long nextSubscriberId;
+    private readonly Lock _gate = new();
+    private readonly Dictionary<long, Channel<T>> _subscribers = [];
+    private bool _completed;
+    private Exception? _completionError;
+    private long _nextSubscriberId;
 
     public IAsyncEnumerable<T> SubscribeAsync(CancellationToken cancellationToken = default)
     {
@@ -22,16 +22,16 @@ internal sealed class AsyncEventHub<T>(int capacity)
         });
         long subscriberId = -1;
 
-        lock (gate)
+        lock (_gate)
         {
-            if (completed)
+            if (_completed)
             {
-                channel.Writer.TryComplete(completionError);
+                channel.Writer.TryComplete(_completionError);
             }
             else
             {
-                subscriberId = nextSubscriberId++;
-                subscribers[subscriberId] = channel;
+                subscriberId = _nextSubscriberId++;
+                _subscribers[subscriberId] = channel;
             }
         }
 
@@ -51,9 +51,9 @@ internal sealed class AsyncEventHub<T>(int capacity)
         finally
         {
             if (subscriberId >= 0)
-                lock (gate)
+                lock (_gate)
                 {
-                    subscribers.Remove(subscriberId);
+                    _subscribers.Remove(subscriberId);
                 }
         }
     }
@@ -61,11 +61,11 @@ internal sealed class AsyncEventHub<T>(int capacity)
     public void Publish(T item)
     {
         KeyValuePair<long, Channel<T>>[] snapshot;
-        lock (gate)
+        lock (_gate)
         {
-            if (completed) return;
+            if (_completed) return;
 
-            snapshot = subscribers.ToArray();
+            snapshot = _subscribers.ToArray();
         }
 
         foreach (var subscriber in snapshot)
@@ -74,9 +74,9 @@ internal sealed class AsyncEventHub<T>(int capacity)
 
             subscriber.Value.Writer.TryComplete(new JupyterBackpressureException(
                 "A Jupyter client event subscriber stopped consuming events."));
-            lock (gate)
+            lock (_gate)
             {
-                subscribers.Remove(subscriber.Key);
+                _subscribers.Remove(subscriber.Key);
             }
         }
     }
@@ -84,14 +84,14 @@ internal sealed class AsyncEventHub<T>(int capacity)
     public void Complete(Exception? error = null)
     {
         Channel<T>[] snapshot;
-        lock (gate)
+        lock (_gate)
         {
-            if (completed) return;
+            if (_completed) return;
 
-            completed = true;
-            completionError = error;
-            snapshot = subscribers.Values.ToArray();
-            subscribers.Clear();
+            _completed = true;
+            _completionError = error;
+            snapshot = _subscribers.Values.ToArray();
+            _subscribers.Clear();
         }
 
         foreach (var subscriber in snapshot) subscriber.Writer.TryComplete(error);

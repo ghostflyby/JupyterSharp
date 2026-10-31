@@ -4,7 +4,6 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading.Channels;
-using Ghostflyby.Jupyter;
 using Ghostflyby.Jupyter.Client.Transport;
 
 namespace Ghostflyby.Jupyter.Client.Protocol;
@@ -13,30 +12,30 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
 {
     private const int ExecutionOutputCapacity = 512;
     private const int CompletedExecutionHistory = 256;
-    private readonly HashSet<JupyterMessageId> completedExecutions = [];
-    private readonly Lock completedGate = new();
-    private readonly Queue<JupyterMessageId> completedOrder = [];
-    private readonly CancellationTokenSource disposal = new();
-    private readonly AsyncEventHub<JupyterClientEvent> events = new(256);
-    private readonly ConcurrentDictionary<JupyterMessageId, ExecutionState> executions = new();
-    private readonly ConcurrentDictionary<JupyterMessageId, PendingRequest> pendingRequests = new();
-    private readonly ConcurrentDictionary<JupyterMessageId, TaskCompletionSource<bool>> readinessProbes = new();
-    private readonly Task routerLoop;
-    private readonly JupyterSessionIdentity session;
-    private readonly IJupyterTransport transport;
-    private int disposeState;
+    private readonly HashSet<JupyterMessageId> _completedExecutions = [];
+    private readonly Lock _completedGate = new();
+    private readonly Queue<JupyterMessageId> _completedOrder = [];
+    private readonly CancellationTokenSource _disposal = new();
+    private readonly AsyncEventHub<JupyterClientEvent> _events = new(256);
+    private readonly ConcurrentDictionary<JupyterMessageId, ExecutionState> _executions = new();
+    private readonly ConcurrentDictionary<JupyterMessageId, PendingRequest> _pendingRequests = new();
+    private readonly ConcurrentDictionary<JupyterMessageId, TaskCompletionSource<bool>> _readinessProbes = new();
+    private readonly Task _routerLoop;
+    private readonly JupyterSessionIdentity _session;
+    private readonly IJupyterTransport _transport;
+    private int _disposeState;
 
     public JupyterProtocolSession(IJupyterTransport transport, JupyterSessionIdentity? session = null)
     {
-        this.transport = transport;
-        this.session = session ?? JupyterSessionIdentity.Create();
-        routerLoop = RouteIncomingMessagesAsync();
+        this._transport = transport;
+        this._session = session ?? JupyterSessionIdentity.Create();
+        _routerLoop = RouteIncomingMessagesAsync();
     }
 
     public async IAsyncEnumerable<JupyterClientEvent> WatchEventsAsync(
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var subscription = events.SubscribeAsync(cancellationToken);
+        var subscription = _events.SubscribeAsync(cancellationToken);
         yield return new JupyterClientConnected();
         await foreach (var item in subscription.ConfigureAwait(false)) yield return item;
     }
@@ -54,7 +53,7 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
 
     public async Task<JupyterKernelInfo> WaitForReadyAsync(CancellationToken cancellationToken = default)
     {
-        if (transport is IJupyterTransportConnectionReadiness connectionReadiness)
+        if (_transport is IJupyterTransportConnectionReadiness connectionReadiness)
             await connectionReadiness.WaitForStdinConnectedAsync(cancellationToken).ConfigureAwait(false);
 
         var ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -65,7 +64,7 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var request = CreateKernelInfoRequest();
-                if (!readinessProbes.TryAdd(request.Header.MessageId, ready))
+                if (!_readinessProbes.TryAdd(request.Header.MessageId, ready))
                     throw new InvalidOperationException(
                         $"Readiness probe '{request.Header.MessageId}' was already registered.");
 
@@ -78,13 +77,13 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
                 var kernelInfo = ParseKernelInfo(reply);
                 if (ready.Task.IsCompletedSuccessfully) return kernelInfo;
 
-                await transport.PingAsync(cancellationToken).ConfigureAwait(false);
+                await _transport.PingAsync(cancellationToken).ConfigureAwait(false);
                 if (ready.Task.IsCompletedSuccessfully) return kernelInfo;
             }
         }
         finally
         {
-            foreach (var probeId in probeIds) readinessProbes.TryRemove(probeId, out _);
+            foreach (var probeId in probeIds) _readinessProbes.TryRemove(probeId, out _);
         }
     }
 
@@ -106,7 +105,7 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
             "execute_request",
             request,
             JupyterJsonContext.Default.JupyterExecuteRequest,
-            session);
+            _session);
         var outputs = Channel.CreateBounded<JupyterOutput>(new BoundedChannelOptions(ExecutionOutputCapacity)
         {
             SingleReader = true,
@@ -117,16 +116,16 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
             new TaskCompletionSource<JupyterExecutionResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         var state = new ExecutionState(message.Header, outputs, completion, options.ObserveOutputs);
 
-        if (!executions.TryAdd(message.Header.MessageId, state))
+        if (!_executions.TryAdd(message.Header.MessageId, state))
             throw new InvalidOperationException($"Execution '{message.Header.MessageId}' was already registered.");
 
         try
         {
-            await transport.SendAsync(JupyterTransportChannel.Shell, message, cancellationToken).ConfigureAwait(false);
+            await _transport.SendAsync(JupyterTransportChannel.Shell, message, cancellationToken).ConfigureAwait(false);
         }
         catch
         {
-            executions.TryRemove(message.Header.MessageId, out _);
+            _executions.TryRemove(message.Header.MessageId, out _);
             outputs.Writer.TryComplete();
             throw;
         }
@@ -195,7 +194,7 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
 
     public Task<TimeSpan> PingAsync(CancellationToken cancellationToken = default)
     {
-        return transport.PingAsync(cancellationToken);
+        return _transport.PingAsync(cancellationToken);
     }
 
     public async Task<JupyterInterruptReply> InterruptAsync(CancellationToken cancellationToken = default)
@@ -204,7 +203,7 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
             "interrupt_request",
             new JupyterEmptyContent(),
             JupyterJsonContext.Default.JupyterEmptyContent,
-            session);
+            _session);
         var reply = await SendRequestAsync(
             JupyterTransportChannel.Control,
             request,
@@ -221,7 +220,7 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
             "shutdown_request",
             new JupyterShutdownRequest(restart),
             JupyterJsonContext.Default.JupyterShutdownRequest,
-            session);
+            _session);
         var reply = await SendRequestAsync(
             JupyterTransportChannel.Control,
             request,
@@ -239,29 +238,29 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
     {
         ArgumentNullException.ThrowIfNull(message);
         ThrowIfDisposed();
-        return transport.SendAsync(JupyterTransportChannel.Shell, message, cancellationToken);
+        return _transport.SendAsync(JupyterTransportChannel.Shell, message, cancellationToken);
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref disposeState, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposeState, 1) != 0) return;
 
-        await disposal.CancelAsync().ConfigureAwait(false);
-        await transport.DisposeAsync().ConfigureAwait(false);
+        await _disposal.CancelAsync().ConfigureAwait(false);
+        await _transport.DisposeAsync().ConfigureAwait(false);
         try
         {
-            await routerLoop.ConfigureAwait(false);
+            await _routerLoop.ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (disposal.IsCancellationRequested)
+        catch (OperationCanceledException) when (_disposal.IsCancellationRequested)
         {
         }
 
         var exception = new ObjectDisposedException(nameof(JupyterProtocolSession));
         FailPending(exception);
         FailExecutions(exception);
-        events.Publish(new JupyterClientDisconnected(null));
-        events.Complete();
-        disposal.Dispose();
+        _events.Publish(new JupyterClientDisconnected(null));
+        _events.Complete();
+        _disposal.Dispose();
     }
 
     private JupyterMessage CreateKernelInfoRequest()
@@ -270,7 +269,7 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
             "kernel_info_request",
             new JupyterEmptyContent(),
             JupyterJsonContext.Default.JupyterEmptyContent,
-            session);
+            _session);
     }
 
     private static JupyterKernelInfo ParseKernelInfo(JupyterMessage reply)
@@ -292,23 +291,23 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
         ThrowIfDisposed();
         var completion = new TaskCompletionSource<JupyterMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         var pending = new PendingRequest(channel, expectedReplyType, completion);
-        if (!pendingRequests.TryAdd(request.Header.MessageId, pending))
+        if (!_pendingRequests.TryAdd(request.Header.MessageId, pending))
             throw new InvalidOperationException($"Request '{request.Header.MessageId}' was already registered.");
 
         await using var registration = cancellationToken.Register(() =>
         {
-            if (pendingRequests.TryRemove(request.Header.MessageId, out var removed))
+            if (_pendingRequests.TryRemove(request.Header.MessageId, out var removed))
                 removed.Completion.TrySetCanceled(cancellationToken);
         });
 
         try
         {
-            await transport.SendAsync(channel, request, cancellationToken).ConfigureAwait(false);
+            await _transport.SendAsync(channel, request, cancellationToken).ConfigureAwait(false);
             return await completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
         catch
         {
-            pendingRequests.TryRemove(request.Header.MessageId, out _);
+            _pendingRequests.TryRemove(request.Header.MessageId, out _);
             throw;
         }
     }
@@ -320,7 +319,7 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
         string replyType,
         CancellationToken cancellationToken)
     {
-        var request = JupyterMessage.Create(requestType, content, contentType, session);
+        var request = JupyterMessage.Create(requestType, content, contentType, _session);
         return SendRequestAsync(JupyterTransportChannel.Shell, request, replyType, cancellationToken);
     }
 
@@ -372,7 +371,7 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
         string value,
         CancellationToken cancellationToken)
     {
-        if (!executions.TryGetValue(execution.RequestHeader.MessageId, out var active) ||
+        if (!_executions.TryGetValue(execution.RequestHeader.MessageId, out var active) ||
             !ReferenceEquals(active, execution))
             throw new ObjectDisposedException(
                 nameof(IJupyterExecution),
@@ -386,14 +385,14 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
             "input_reply",
             new JupyterInputReply(value),
             JupyterJsonContext.Default.JupyterInputReply,
-            session,
+            _session,
             request.Header);
-        await transport.SendAsync(JupyterTransportChannel.Stdin, reply, cancellationToken).ConfigureAwait(false);
+        await _transport.SendAsync(JupyterTransportChannel.Stdin, reply, cancellationToken).ConfigureAwait(false);
     }
 
     private ValueTask AbandonExecutionAsync(ExecutionState execution)
     {
-        if (!executions.TryRemove(execution.RequestHeader.MessageId, out _)) return ValueTask.CompletedTask;
+        if (!_executions.TryRemove(execution.RequestHeader.MessageId, out _)) return ValueTask.CompletedTask;
 
         RememberCompletedExecution(execution.RequestHeader.MessageId);
         execution.Outputs.Writer.TryComplete(
@@ -406,20 +405,20 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
     {
         try
         {
-            await foreach (var transportMessage in transport.IncomingMessages
-                               .WithCancellation(disposal.Token)
+            await foreach (var transportMessage in _transport.IncomingMessages
+                               .WithCancellation(_disposal.Token)
                                .ConfigureAwait(false))
                 RouteMessage(transportMessage);
         }
-        catch (OperationCanceledException) when (disposal.IsCancellationRequested)
+        catch (OperationCanceledException) when (_disposal.IsCancellationRequested)
         {
         }
         catch (Exception exception)
         {
             FailPending(exception);
             FailExecutions(exception);
-            events.Publish(new JupyterClientDisconnected(exception));
-            events.Complete(exception);
+            _events.Publish(new JupyterClientDisconnected(exception));
+            _events.Complete(exception);
         }
     }
 
@@ -428,27 +427,27 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
         var message = transportMessage.Message;
         if (transportMessage.Channel == JupyterTransportChannel.Iopub &&
             message is { MessageType: "status", ParentHeader: { } readinessParent } &&
-            readinessProbes.TryGetValue(readinessParent.MessageId, out var readiness) &&
+            _readinessProbes.TryGetValue(readinessParent.MessageId, out var readiness) &&
             TryGetKernelStatus(message, out var readinessState) &&
             readinessState == JupyterKernelState.Idle)
             readiness.TrySetResult(true);
 
         if (message.ParentHeader is { } parent &&
-            pendingRequests.TryGetValue(parent.MessageId, out var pending))
+            _pendingRequests.TryGetValue(parent.MessageId, out var pending))
         {
             var replyMatched = pending.Channel == transportMessage.Channel &&
                                string.Equals(pending.ExpectedReplyType, message.MessageType,
                                    StringComparison.Ordinal);
             if (replyMatched)
             {
-                if (pendingRequests.TryRemove(parent.MessageId, out _)) pending.Completion.TrySetResult(message);
+                if (_pendingRequests.TryRemove(parent.MessageId, out _)) pending.Completion.TrySetResult(message);
 
                 return;
             }
         }
 
         if (message.ParentHeader is { } executionParent &&
-            executions.TryGetValue(executionParent.MessageId, out var execution))
+            _executions.TryGetValue(executionParent.MessageId, out var execution))
         {
             if (transportMessage.Channel == JupyterTransportChannel.Iopub && execution.IdleSeen)
             {
@@ -506,7 +505,7 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
             }
 
             if (execution.ObserveOutputs && transportMessage.Channel == JupyterTransportChannel.Iopub)
-                events.Publish(new JupyterExecutionOutputObserved(
+                _events.Publish(new JupyterExecutionOutputObserved(
                     execution.RequestHeader.MessageId,
                     message,
                     output));
@@ -527,7 +526,7 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
             execution.ReplyMessage is not { } replyMessage)
             return;
 
-        if (!executions.TryRemove(execution.RequestHeader.MessageId, out _)) return;
+        if (!_executions.TryRemove(execution.RequestHeader.MessageId, out _)) return;
 
         RememberCompletedExecution(execution.RequestHeader.MessageId);
         execution.Outputs.Writer.TryComplete();
@@ -539,7 +538,7 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
         var lateOutput = new JupyterLateOutput(requestId, message);
         if (TryCreateOutput(requestId, message, out var output)) lateOutput = lateOutput with { Output = output };
 
-        events.Publish(lateOutput);
+        _events.Publish(lateOutput);
     }
 
     private void PublishLateOutput(ExecutionState execution, JupyterMessage message)
@@ -557,7 +556,7 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
             lateOutput = lateOutput with { Output = output, IncludedInExecution = true };
         }
 
-        events.Publish(lateOutput);
+        _events.Publish(lateOutput);
     }
 
     private static bool TryCreateOutput(JupyterMessageId requestId, JupyterMessage message,
@@ -708,13 +707,13 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
         {
             case "status":
                 if (TryGetKernelStatus(message, out var kernelState))
-                    events.Publish(new JupyterKernelStatusChanged(kernelState));
+                    _events.Publish(new JupyterKernelStatusChanged(kernelState));
 
                 return;
             case "iopub_welcome":
                 return;
             default:
-                events.Publish(new JupyterUnhandledMessage(transportMessage.Channel, message));
+                _events.Publish(new JupyterUnhandledMessage(transportMessage.Channel, message));
                 break;
         }
     }
@@ -732,15 +731,15 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
 
     private void FailPending(Exception exception)
     {
-        foreach (var pair in pendingRequests)
-            if (pendingRequests.TryRemove(pair.Key, out var pending))
+        foreach (var pair in _pendingRequests)
+            if (_pendingRequests.TryRemove(pair.Key, out var pending))
                 pending.Completion.TrySetException(exception);
     }
 
     private void FailExecutions(Exception exception)
     {
-        foreach (var pair in executions)
-            if (executions.TryRemove(pair.Key, out var execution))
+        foreach (var pair in _executions)
+            if (_executions.TryRemove(pair.Key, out var execution))
             {
                 execution.Outputs.Writer.TryComplete(exception);
                 execution.Completion.TrySetException(exception);
@@ -749,33 +748,33 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
 
     private void FailExecution(ExecutionState execution, Exception exception)
     {
-        executions.TryRemove(execution.RequestHeader.MessageId, out _);
+        _executions.TryRemove(execution.RequestHeader.MessageId, out _);
         execution.Outputs.Writer.TryComplete(exception);
         execution.Completion.TrySetException(exception);
     }
 
     private void RememberCompletedExecution(JupyterMessageId requestId)
     {
-        lock (completedGate)
+        lock (_completedGate)
         {
-            completedExecutions.Add(requestId);
-            completedOrder.Enqueue(requestId);
-            while (completedOrder.Count > CompletedExecutionHistory)
-                completedExecutions.Remove(completedOrder.Dequeue());
+            _completedExecutions.Add(requestId);
+            _completedOrder.Enqueue(requestId);
+            while (_completedOrder.Count > CompletedExecutionHistory)
+                _completedExecutions.Remove(_completedOrder.Dequeue());
         }
     }
 
     private bool IsCompletedExecution(JupyterMessageId requestId)
     {
-        lock (completedGate)
+        lock (_completedGate)
         {
-            return completedExecutions.Contains(requestId);
+            return _completedExecutions.Contains(requestId);
         }
     }
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(Volatile.Read(ref disposeState) != 0, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeState) != 0, this);
     }
 
     private sealed class PendingRequest(

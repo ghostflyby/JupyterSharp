@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Ghostflyby.Jupyter;
 
 namespace Ghostflyby.Jupyter.Tests;
 
