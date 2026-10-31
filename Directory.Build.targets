@@ -4,7 +4,7 @@
          test project opts out, and only the shipping libraries get SourceLink and the
          repository-level license files packed into their nupkg. -->
     <ItemGroup Condition="'$(IsPackable)' != 'false'">
-        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.401" PrivateAssets="all"/>
+        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.403" PrivateAssets="all"/>
     </ItemGroup>
 
     <ItemGroup Condition="'$(IsPackable)' != 'false'">

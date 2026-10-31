@@ -21,6 +21,8 @@
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <RepositoryType>git</RepositoryType>
         <RepositoryUrl>https://github.com/ghostflyby/JupyterSharp</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/ghostflyby/JupyterSharp</PackageProjectUrl>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
         <!-- Symbol packages: a .snupkg with the portable PDB ships alongside the nupkg
              so consumers can debug into the sources. SourceLink maps the PDB back to
              the GitHub commit. -->

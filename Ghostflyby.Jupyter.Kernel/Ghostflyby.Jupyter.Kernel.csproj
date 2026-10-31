@@ -2,6 +2,8 @@
 
     <PropertyGroup>
         <PackageId>Ghostflyby.Jupyter.Kernel</PackageId>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);CS1591</NoWarn>
         <Description>A server-side Jupyter kernel host for .NET: ROUTER/XPUB/REP transport, request dispatch, execution state publication, interrupt, and shutdown.</Description>
         <PackageTags>jupyter;jupyter-kernel;notebook;zeromq;kernel</PackageTags>
     </PropertyGroup>

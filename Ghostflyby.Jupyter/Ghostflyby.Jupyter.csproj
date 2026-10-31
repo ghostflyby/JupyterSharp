@@ -2,6 +2,8 @@
 
     <PropertyGroup>
         <PackageId>Ghostflyby.Jupyter</PackageId>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);CS1591</NoWarn>
         <Description>Transport-independent Jupyter wire protocol for .NET: messaging protocol 5.5 envelopes, HMAC signing, classic connection files, MIME bundles, and cursor conversion.</Description>
         <PackageTags>jupyter;jupyter-client;jupyter-kernel;notebook;protocol;messaging</PackageTags>
     </PropertyGroup>

@@ -2,6 +2,8 @@
 
     <PropertyGroup>
         <PackageId>Ghostflyby.Jupyter.Client</PackageId>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);CS1591</NoWarn>
         <Description>A .NET client for Jupyter kernels: ZeroMQ transport, parent/channel/type request correlation, execution output, stdin, completion, and local kernel process management.</Description>
         <PackageTags>jupyter;jupyter-client;notebook;zeromq;kernel</PackageTags>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
