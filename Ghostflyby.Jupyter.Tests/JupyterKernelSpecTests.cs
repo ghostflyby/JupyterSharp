@@ -5,7 +5,7 @@ namespace Ghostflyby.Jupyter.Tests;
 
 public sealed class JupyterKernelSpecTests
 {
-    [Fact]
+    [Fact(Timeout = 30_000)]
     public async Task ReadAsyncProjectsEveryKernelSpecField()
     {
         var path = Path.Combine(Path.GetTempPath(), $"jupyter-kernelspec-{Guid.NewGuid():N}.json");
