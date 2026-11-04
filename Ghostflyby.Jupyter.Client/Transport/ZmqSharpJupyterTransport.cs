@@ -291,7 +291,7 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
         }
     }
 
-    private void OnPeerEnded(string channel, IZConnection peer, Exception? failure)
+    private void OnPeerEnded(IZConnection _, Exception? failure)
     {
         if (_lifetime.IsCancellationRequested) return;
 
@@ -499,27 +499,27 @@ internal sealed class ZmqSharpJupyterTransport : IJupyterTransport, IJupyterTran
 
         private void OnShellEnded(IZConnection peer, Exception? failure)
         {
-            _owner.OnPeerEnded("shell", peer, failure);
+            _owner.OnPeerEnded(peer, failure);
         }
 
         private void OnControlEnded(IZConnection peer, Exception? failure)
         {
-            _owner.OnPeerEnded("control", peer, failure);
+            _owner.OnPeerEnded(peer, failure);
         }
 
         private void OnStdinEnded(IZConnection peer, Exception? failure)
         {
-            _owner.OnPeerEnded("stdin", peer, failure);
+            _owner.OnPeerEnded(peer, failure);
         }
 
         private void OnIopubEnded(IZConnection peer, Exception? failure)
         {
-            _owner.OnPeerEnded("IOPub", peer, failure);
+            _owner.OnPeerEnded(peer, failure);
         }
 
         private void OnHeartbeatEnded(IZConnection peer, Exception? failure)
         {
-            _owner.OnPeerEnded("heartbeat", peer, failure);
+            _owner.OnPeerEnded(peer, failure);
         }
     }
 }

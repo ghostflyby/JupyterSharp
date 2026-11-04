@@ -104,6 +104,8 @@ public sealed class JupyterProtocolSessionTests
         var completion = await execution.Completion.WaitAsync(TestContext.Current.CancellationToken);
         var collected = await outputs.WaitAsync(TestContext.Current.CancellationToken);
         completion.Reply.Status.Should().Be("ok");
+        completion.RawMessage.MessageType.Should().Be("execute_reply");
+        completion.RawMessage.Header.MessageId.Should().Be(reply.Header.MessageId);
         collected.Should().ContainSingle(output => output is JupyterExecuteResultOutput);
         collected.Last().Should().BeOfType<JupyterExecutionStatusChanged>()
             .Which.State.Should().Be(JupyterKernelState.Idle);
@@ -390,6 +392,7 @@ public sealed class JupyterProtocolSessionTests
         (await events.MoveNextAsync()).Should().BeTrue();
         var observedDisplay = events.Current.Should().BeOfType<JupyterExecutionOutputObserved>().Subject;
         observedDisplay.RequestId.Should().Be(barrier.RequestId);
+        observedDisplay.Message.MessageType.Should().Be("display_data");
         observedDisplay.Output.Should().BeOfType<JupyterDisplayOutput>()
             .Which.Data.Data["text/plain"].GetString().Should().Be("barrier");
         (await events.MoveNextAsync()).Should().BeTrue();
@@ -809,12 +812,173 @@ public sealed class JupyterProtocolSessionTests
         await using var outputs = execution.Outputs.GetAsyncEnumerator(TestContext.Current.CancellationToken);
         (await outputs.MoveNextAsync()).Should().BeTrue();
         var input = outputs.Current.Should().BeOfType<JupyterInputRequest>().Subject;
+        input.InputRequestId.Should().Be(inputRequest.Header.MessageId);
+        input.Prompt.Should().Be("Name: ");
+        input.Password.Should().BeFalse();
         await execution.ReplyInputAsync(input, "Ada", TestContext.Current.CancellationToken);
 
         var reply = transport.SentMessages.Last();
         reply.Channel.Should().Be(JupyterTransportChannel.Stdin);
         reply.Message.MessageType.Should().Be("input_reply");
         reply.Message.ParentHeader.Should().Be(inputRequest.Header);
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task OutputProjectionCarriesEveryTypedField()
+    {
+        var transport = new FakeJupyterTransport();
+        await using var session = new JupyterProtocolSession(transport);
+        var execution = await session.StartExecutionAsync(
+            new JupyterExecuteRequest("outputs"),
+            TestContext.Current.CancellationToken);
+        var request = transport.SentMessages.Single().Message;
+        var data = new Dictionary<string, JsonElement>
+        {
+            ["text/plain"] = JsonSerializer.SerializeToElement("value")
+        };
+        var metadata = new Dictionary<string, JsonElement>
+        {
+            ["meta"] = JsonSerializer.SerializeToElement("value")
+        };
+        var transient = JupyterDisplayTransient.Create(new JupyterDisplayId("display-1"));
+
+        transport.Receive(
+            JupyterTransportChannel.Iopub,
+            Reply(
+                "stream",
+                new JupyterStream("stderr", "warning"),
+                JupyterJsonContext.Default.JupyterStream,
+                request));
+        transport.Receive(
+            JupyterTransportChannel.Iopub,
+            Reply(
+                "display_data",
+                new JupyterDisplayData(data, metadata, transient),
+                JupyterJsonContext.Default.JupyterDisplayData,
+                request));
+        transport.Receive(
+            JupyterTransportChannel.Iopub,
+            Reply(
+                "update_display_data",
+                new JupyterUpdateDisplayData(data, metadata, transient),
+                JupyterJsonContext.Default.JupyterUpdateDisplayData,
+                request));
+        transport.Receive(
+            JupyterTransportChannel.Iopub,
+            Reply(
+                "execute_result",
+                new JupyterExecuteResultData(data, metadata, 7),
+                JupyterJsonContext.Default.JupyterExecuteResultData,
+                request));
+        transport.Receive(
+            JupyterTransportChannel.Iopub,
+            Reply(
+                "error",
+                new JupyterError("TestError", "failure", ["frame"]),
+                JupyterJsonContext.Default.JupyterError,
+                request));
+
+        await using var outputs = execution.Outputs
+            .GetAsyncEnumerator(TestContext.Current.CancellationToken);
+
+        (await outputs.MoveNextAsync()).Should().BeTrue();
+        var stderr = outputs.Current.Should().BeOfType<JupyterStderr>().Subject;
+        stderr.RequestId.Should().Be(execution.RequestId);
+        stderr.Text.Should().Be("warning");
+
+        (await outputs.MoveNextAsync()).Should().BeTrue();
+        var display = outputs.Current.Should().BeOfType<JupyterDisplayOutput>().Subject;
+        display.Data.Data["text/plain"].GetString().Should().Be("value");
+        display.Metadata.Should().ContainKey("meta");
+
+        (await outputs.MoveNextAsync()).Should().BeTrue();
+        var update = outputs.Current.Should().BeOfType<JupyterDisplayUpdateOutput>().Subject;
+        update.Data.Data["text/plain"].GetString().Should().Be("value");
+        update.Metadata.Should().ContainKey("meta");
+        update.Transient.Should().ContainKey(JupyterDisplayTransient.DisplayIdPropertyName);
+        update.DisplayId.Should().Be(new JupyterDisplayId("display-1"));
+
+        (await outputs.MoveNextAsync()).Should().BeTrue();
+        var result = outputs.Current.Should().BeOfType<JupyterExecuteResultOutput>().Subject;
+        result.Data.Data["text/plain"].GetString().Should().Be("value");
+        result.Metadata.Should().ContainKey("meta");
+        result.ExecutionCount.Should().Be(7);
+
+        (await outputs.MoveNextAsync()).Should().BeTrue();
+        var error = outputs.Current.Should().BeOfType<JupyterExecutionError>().Subject;
+        error.Name.Should().Be("TestError");
+        error.Value.Should().Be("failure");
+        error.Traceback.Should().Equal("frame");
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task GlobalEventsProjectKernelStateAndUnhandledMessages()
+    {
+        var transport = new FakeJupyterTransport();
+        await using var session = new JupyterProtocolSession(transport);
+        await using var events = session.WatchEventsAsync(TestContext.Current.CancellationToken)
+            .GetAsyncEnumerator(TestContext.Current.CancellationToken);
+        (await events.MoveNextAsync()).Should().BeTrue();
+
+        transport.Receive(
+            JupyterTransportChannel.Iopub,
+            JupyterMessage.Create(
+                "status",
+                new JupyterStatus("busy"),
+                JupyterJsonContext.Default.JupyterStatus,
+                KernelSession));
+
+        (await events.MoveNextAsync()).Should().BeTrue();
+        events.Current.Should().BeOfType<JupyterKernelStatusChanged>()
+            .Which.State.Should().Be(JupyterKernelState.Busy);
+
+        var unhandledMessage = JupyterMessage.Create(
+            "comm_open",
+            new JupyterEmptyContent(),
+            JupyterJsonContext.Default.JupyterEmptyContent,
+            KernelSession);
+        transport.Receive(JupyterTransportChannel.Iopub, unhandledMessage);
+
+        (await events.MoveNextAsync()).Should().BeTrue();
+        var unhandled = events.Current.Should().BeOfType<JupyterUnhandledMessage>().Subject;
+        unhandled.Channel.Should().Be(JupyterTransportChannel.Iopub);
+        unhandled.Message.MessageType.Should().Be("comm_open");
+        unhandled.Message.Header.MessageId.Should().Be(unhandledMessage.Header.MessageId);
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task DisposalPublishesDisconnectionWithoutCause()
+    {
+        var transport = new FakeJupyterTransport();
+        var session = new JupyterProtocolSession(transport);
+        await using var events = session.WatchEventsAsync(TestContext.Current.CancellationToken)
+            .GetAsyncEnumerator(TestContext.Current.CancellationToken);
+        (await events.MoveNextAsync()).Should().BeTrue();
+
+        await session.DisposeAsync();
+
+        (await events.MoveNextAsync()).Should().BeTrue();
+        events.Current.Should().BeOfType<JupyterClientDisconnected>()
+            .Which.Cause.Should().BeNull();
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task TransportFailurePublishesDisconnectionCause()
+    {
+        var transport = new FakeJupyterTransport();
+        var session = new JupyterProtocolSession(transport);
+        await using var events = session.WatchEventsAsync(TestContext.Current.CancellationToken)
+            .GetAsyncEnumerator(TestContext.Current.CancellationToken);
+        (await events.MoveNextAsync()).Should().BeTrue();
+
+        var failure = new IOException("transport failed");
+        transport.Fail(failure);
+
+        (await events.MoveNextAsync()).Should().BeTrue();
+        events.Current.Should().BeOfType<JupyterClientDisconnected>()
+            .Which.Cause.Should().BeSameAs(failure);
+
+        await session.DisposeAsync();
     }
 
     [Fact(Timeout = 30_000)]

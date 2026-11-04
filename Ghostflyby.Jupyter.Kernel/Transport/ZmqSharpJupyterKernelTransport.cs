@@ -280,7 +280,7 @@ internal sealed class ZmqSharpJupyterKernelTransport : IJupyterKernelTransport
             throw new JupyterProtocolException("The Jupyter kernel transport has terminated.", exception);
     }
 
-    private void OnPeerEnded(string channel, IZConnection peer, Exception? failure)
+    private void OnPeerEnded(string channel, Exception? failure)
     {
         if (failure is null || _lifetime.IsCancellationRequested) return;
 
@@ -293,29 +293,29 @@ internal sealed class ZmqSharpJupyterKernelTransport : IJupyterKernelTransport
         _incomingEvents.Writer.TryWrite(new JupyterKernelPeerEnded(channel, failure));
     }
 
-    private void OnShellPeerEnded(IZConnection peer, Exception? failure)
+    private void OnShellPeerEnded(IZConnection _, Exception? failure)
     {
-        OnPeerEnded("shell", peer, failure);
+        OnPeerEnded("shell", failure);
     }
 
-    private void OnControlPeerEnded(IZConnection peer, Exception? failure)
+    private void OnControlPeerEnded(IZConnection _, Exception? failure)
     {
-        OnPeerEnded("control", peer, failure);
+        OnPeerEnded("control", failure);
     }
 
-    private void OnStdinPeerEnded(IZConnection peer, Exception? failure)
+    private void OnStdinPeerEnded(IZConnection _, Exception? failure)
     {
-        OnPeerEnded("stdin", peer, failure);
+        OnPeerEnded("stdin", failure);
     }
 
-    private void OnIopubPeerEnded(IZConnection peer, Exception? failure)
+    private void OnIopubPeerEnded(IZConnection _, Exception? failure)
     {
-        OnPeerEnded("IOPub", peer, failure);
+        OnPeerEnded("IOPub", failure);
     }
 
-    private void OnHeartbeatPeerEnded(IZConnection peer, Exception? failure)
+    private void OnHeartbeatPeerEnded(IZConnection _, Exception? failure)
     {
-        OnPeerEnded("heartbeat", peer, failure);
+        OnPeerEnded("heartbeat", failure);
     }
 
     private async Task DisposeSocketsAsync()

@@ -108,6 +108,9 @@ public sealed class JupyterTransportLifecycleTests
             .WaitForStdinConnectedAsync(cancellationToken);
         var enumeration = transport.IncomingMessages.GetAsyncEnumerator(cancellationToken);
 
+        // Early disposal is the stimulus under test: DisposeAsync is idempotent, and the
+        // automatic disposal at scope exit runs afterwards.
+        // ReSharper disable once DisposeOnUsingVariable
         await host.DisposeAsync();
 
         // The stream must keep running (a clean EOF does not terminate the
@@ -122,8 +125,6 @@ public sealed class JupyterTransportLifecycleTests
             await enumeration.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2), cancellationToken));
         var failedByCleanEof = outcome is JupyterProtocolException or IOException;
         failedByCleanEof.Should().BeFalse($"a clean EOF must not terminate the transport; actual outcome: {outcome}");
-
-        await transport.DisposeAsync();
     }
 
     private sealed class HangingKernelApplication : IJupyterKernelApplication
