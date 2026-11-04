@@ -134,7 +134,7 @@ internal sealed class JupyterProtocolSession : IJupyterProtocolSession
             message.Header.MessageId,
             outputs.Reader,
             completion.Task,
-            (request, value, token) => ReplyInputAsync(state, request, value, token),
+            (inputRequest, value, token) => ReplyInputAsync(state, inputRequest, value, token),
             () => AbandonExecutionAsync(state));
     }
 

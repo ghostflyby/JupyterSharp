@@ -65,4 +65,9 @@ internal sealed class FakeJupyterTransport : IJupyterTransport
             channel,
             new JupyterWireMessage(identities ?? [], message, [])));
     }
+
+    public void Fail(Exception exception)
+    {
+        _incomingMessages.Writer.TryComplete(exception);
+    }
 }

@@ -256,6 +256,32 @@ public sealed class SelfHostedJupyterIntegrationTests
     }
 
     [Fact(Timeout = 30_000)]
+    public async Task ExecutionContextExposesRequestIdAndExecutionCount()
+    {
+        using var deadline = CreateDeadline(TestContext.Current.CancellationToken);
+        var cancellationToken = deadline.Token;
+        var connection = JupyterConnectionInfo.CreateLocalTcp();
+        var application = new TestKernelApplication();
+        await using var host = await JupyterKernelHost.StartAsync(
+            connection,
+            application,
+            cancellationToken: cancellationToken);
+        await using var client = await JupyterClient.ConnectAsync(
+            connection,
+            cancellationToken: cancellationToken);
+
+        var execution = await client.ExecuteAsync(
+            new JupyterExecuteRequest("context"),
+            cancellationToken);
+        (await execution.Completion.WaitAsync(cancellationToken)).Reply.Status.Should().Be("ok");
+
+        var observed = application.ObservedContext;
+        observed.Should().NotBeNull();
+        observed.Value.RequestId.Should().Be(execution.RequestId);
+        observed.Value.ExecutionCount.Should().Be(1);
+    }
+
+    [Fact(Timeout = 30_000)]
     public async Task HostRequestInterruptAbortsWaitingExecution()
     {
         using var deadline = CreateDeadline(TestContext.Current.CancellationToken);
@@ -535,6 +561,8 @@ public sealed class SelfHostedJupyterIntegrationTests
 
         public TaskCompletionSource WaitStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+        public (JupyterMessageId RequestId, int ExecutionCount)? ObservedContext { get; private set; }
+
         public JupyterDisplayId LateDisplayId { get; private set; }
 
         public Channel<JupyterCommMessage> CommMessages { get; } = Channel.CreateUnbounded<JupyterCommMessage>();
@@ -620,6 +648,9 @@ public sealed class SelfHostedJupyterIntegrationTests
         {
             switch (request.Code)
             {
+                case "context":
+                    ObservedContext = (context.RequestId, context.ExecutionCount);
+                    break;
                 case "sum":
                     await context.PublishResultAsync(
                         new MimeBundle(new Dictionary<string, JsonElement>

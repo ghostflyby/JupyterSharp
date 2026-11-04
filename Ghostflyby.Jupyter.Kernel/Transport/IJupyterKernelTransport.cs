@@ -29,7 +29,11 @@ internal sealed record JupyterKernelMessageReceived(
 ///     peers, so this is diagnostic: it does not terminate the transport, and events may be
 ///     dropped when the transport is shutting down or its queue is saturated.
 /// </summary>
+// The kernel host deliberately ignores routine peer teardown, so no in-solution code
+// reads the payload; the fields stay because the event describes the ended peer.
+// ReSharper disable NotAccessedPositionalProperty.Global
 internal sealed record JupyterKernelPeerEnded(string Channel, Exception Failure) : JupyterKernelTransportEvent;
+// ReSharper restore NotAccessedPositionalProperty.Global
 
 internal sealed record JupyterIopubSubscriptionReceived(byte[] Topic) : JupyterKernelTransportEvent;
 
