@@ -52,7 +52,20 @@ jobs:
       - name: Test
         # The socket integration tests bind loopback TCP and are serialized into a
         # non-parallel collection; they need no external kernel, Python, or ZMQ runtime.
-        run: dotnet test Ghostflyby.Jupyter.slnx --no-build --configuration Release
+        # MTP mode: the xunit v3 test assembly is a self-executing
+        # Microsoft.Testing.Platform app, so the VSTest-era --logger option no
+        # longer exists. --report-trx (provided by
+        # Microsoft.Testing.Extensions.TrxReport, referenced by the test
+        # project) writes the .trx into TestResults.
+        run: dotnet test Ghostflyby.Jupyter.slnx --no-build --configuration Release --report-trx --results-directory TestResults
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}
+          path: TestResults
+          if-no-files-found: ignore
 
   # IsAotCompatible on the libraries only proves they compile against the AOT analyzers.
   # Publishing and running a real AOT host is what proves the trim/AOT annotations and the
