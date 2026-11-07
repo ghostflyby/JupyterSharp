@@ -5,15 +5,18 @@
         <!-- Test assemblies are not AOT-compiled; the analyzer set switched on in
              Directory.Build.props would only add noise here. -->
         <IsAotCompatible>false</IsAotCompatible>
+        <!-- xunit.v3 test projects are executables: the framework's source generator
+             emits the entry point that hosts its Microsoft.Testing.Platform runner,
+             which the .NET 10 SDK's dotnet test drives natively. -->
+        <OutputType>Exe</OutputType>
     </PropertyGroup>
 
     <ItemGroup>
         <PackageReference Include="FluentAssertions" Version="8.10.0" />
-        <PackageReference Include="coverlet.collector" Version="10.0.1" />
-        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.0" />
         <PackageReference Include="ZmqSharp" Version="0.5.1" />
         <PackageReference Include="xunit.v3" Version="4.0.0" />
-        <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
+        <!-- Provides the report-trx capability of CI's dotnet test step. -->
+        <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.2" />
     </ItemGroup>
 
     <ItemGroup>
